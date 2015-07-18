@@ -140,7 +140,7 @@ def main():
     parser.add_argument("-d", action="store", dest="domain", default="WORKGROUP", help="Accepts the domain to be used, defalts to 'WORKGROUP'")
     parser.add_argument("-t", action="store", dest="targets", default=None, help="Accepts the IP  to be used, can provide a range, single IP or CIDR")
     parser.add_argument("-l", action="store", dest="targets_file", default=None, help="Accepts a file with IP addresses, ranges, and CIDR notations delinated by new lines")
-    parser.add_argument("-r", action="store", dest="ports", default="445", help="Accepts the port to be used, defalts to '445'")
+    parser.add_argument("-r", action="store", dest="ports", default="135", help="Accepts the port to be used, defalts to '135'")
     parser.add_argument("-o", action="store", dest="home_dir", default="/root", help="Accepts the dir to store any results in, defaults to /root")
     parser.add_argument("-f", action="store", dest="filename", default="results", help="Accepts the filename to output relevant results")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
