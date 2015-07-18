@@ -31,8 +31,11 @@ import os, argparse, sys, time, logging
 import utilities.network as network
 try:
     import msfrpc
-except:
-    sys.exit("[!] Install the msfrpc library that can be found here: https://github.com/SpiderLabs/msfrpc.git")
+except ImportError as e:
+    msg = "[!] Install the msfrpc library that can be found here: https://github.com/SpiderLabs/msfrpc.git"
+    if "msgpack" in e.message.lower():
+        msg = "[!] Install the msgpack library: pip install msgpack-python"
+    sys.exit(msg)
 try:
     import nmap
 except:
