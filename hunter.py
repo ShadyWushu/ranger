@@ -27,7 +27,7 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
 
-import os, argparse, sys, time
+import os, argparse, sys, time, logging
 import utilities.network as network
 try:
     import msfrpc
@@ -38,7 +38,7 @@ try:
 except:
     sys.exit("[!] Install the nmap library: pip install python-nmap")
 
-def target_identifier(verbose, dir, user, passwd, ips, port_num, ifaces, ipfile):
+def target_identifier(dir, user, passwd, ips, port_num, ifaces, ipfile, logger=logging.getLogger()):
     hostlist = []
     pre_pend = "smb"
     service_name = 'microsoft-ds'
@@ -49,14 +49,12 @@ def target_identifier(verbose, dir, user, passwd, ips, port_num, ifaces, ipfile)
     hosts_output = "%s/%s_hosts" % (dir, pre_pend)
     scanner = nmap.PortScanner()
     if ipfile != None:
-        if verbose > 0:
-            print("[*] Extracting hosts from file: %s") % (ipfile)
+        logger.info("[*] Extracting hosts from file: %s") % (ipfile)
         with open(ipfile) as f:
             hostlist = f.read().replace('\n',' ')
         scanner.scan(hosts=hostlist, ports=port_num)
     else:
-        if verbose >0:
-            print("[*] Scanning for port: %s within %s") % (str(ips), str(port_num))
+        logger.info("[*] Scanning for port: %s within %s") % (str(ips), str(port_num))
         scanner.scan(hosts=ips, ports=port_num)
     open(hosts_output, 'w').close()
     hostlist=[]
@@ -73,23 +71,20 @@ def target_identifier(verbose, dir, user, passwd, ips, port_num, ifaces, ipfile)
             e = open(hosts_output, 'a', bufsize)
             if service_name or service_name2 in scanner[host][protocol][int(port_num)]['name']:
                 if port_state in scanner[host][protocol][int(port_num)]['state']:
-                    if verbose > 0:
-                        print("[+] Adding host %s to %s since the service is active on %s") % (host, hosts_output, port_num)
+                    logger.info("[+] Adding host %s to %s since the service is active on %s" % (host, hosts_output, port_num))
                     hostdata=host + "\n"
                     e.write(hostdata)
                     hostlist.append(host)
                 else:
-                    if verbose > 0:
-                        print("[-] Host %s was not added to %s due to there being no open service on %s") % (host, hosts_output, port_num)
+                    logger.info("[-] Host %s was not added to %s due to there being no open service on %s" % (host, hosts_output, port_num))
     if not hostlist:
-        if verbose > 0:
-            print("[!] No open services found")
+        logger.info("[!] No open services found")
     if not scanner.all_hosts():
         e.closed
     if hosts_output:
         return hosts_output, hostlist
 
-def build_command(verbose, user, passwd, dom, port, ip):
+def build_command(user, passwd, dom, port, ip):
     module = "auxiliary/scanner/smb/smb_enumusers_domain"
     command = '''use ''' + module + '''
 set RHOSTS ''' + ip + '''
@@ -100,7 +95,7 @@ run
 '''
     return command, module
 
-def run_commands(verbose, iplist, user, passwd, dom, port, file):
+def run_commands(iplist, user, passwd, dom, port, file, logger=logging.getLogger()):
     bufsize = 0
     e = open(file, 'a', bufsize)
     done = False
@@ -113,11 +108,9 @@ def run_commands(verbose, iplist, user, passwd, dom, port, file):
     console_id = result['id']
     console_id_int = int(console_id)
     for ip in iplist:
-        if verbose > 0:
-            print("[*] Building custom command for: %s") % (str(ip))
-        command, module = build_command(verbose, user, passwd, dom, port, ip)
-        if verbose > 0:
-            print("[*] Executing Metasploit module %s on host: %s") % (module, str(ip))
+        logger.info("[*] Building custom command for: %s" % (str(ip)))
+        command, module = build_command(user, passwd, dom, port, ip)
+        logger.info("[*] Executing Metasploit module %s on host: %s" % (module, str(ip)))
         client.call('console.write',[console_id, command])
         time.sleep(1)
         while done != True:
@@ -129,8 +122,7 @@ def run_commands(verbose, iplist, user, passwd, dom, port, file):
                 else:
                     console_output = result['data']
                     e.write(console_output)
-                    if verbose > 0:
-                        print(console_output)
+                    logger.info(console_output)
                     done = True
     e.closed
     client.call('console.destroy',[console_id])
@@ -174,6 +166,19 @@ def main():
     gateways = {}
     network_ifaces={}
 
+    # Configure logger
+    logger = logging.getLogger()
+    if verbose == 0:
+        level = logging.ERROR
+    elif verbose == 1:
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+    logger.setLevel(level)
+    log_format = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s") # Log format
+    logger.setFormat(log_format)
+
+    # Set filename
     if not filename:
         if os.name != "nt":
              filename = home_dir + "/msfrpc_smb_output"
@@ -182,20 +187,18 @@ def main():
     else:
         if filename:
             if "\\" or "/" in filename:
-                if verbose > 1:
-                    print("[*] Using filename: %s") % (filename)
+                logger.info("[*] Using filename: %s") % (filename)
         else:
             if os.name != "nt":
                 filename = home_dir + "/" + filename
             else:
                 filename = home_dir + "\\" + filename
-                if verbose > 1:
-                    print("[*] Using filename: %s") % (filename)
+                logger.info("[*] Using filename: %s") % (filename)
 
     gateways = network.get_gateways()
     network_ifaces = network.get_networks(gateways)
-    hosts_file, hostlist = target_identifier(verbose, home_dir, username, password, targets, ports, network_ifaces, targets_file)
-    run_commands(verbose, hostlist, username, password, domain, ports, filename)
+    hosts_file, hostlist = target_identifier(home_dir, username, password, targets, ports, network_ifaces, targets_file)
+    run_commands(hostlist, username, password, domain, ports, filename)
 
 if __name__ == '__main__':
     main()
