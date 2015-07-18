@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os, argparse, sys, time, logging
 import utilities.network as network
+import utilities.nmap as nmap_parser
 try:
     import msfrpc
 except ImportError as e:
@@ -138,13 +139,15 @@ def main():
     parser.add_argument("-u", action="store", dest="username", default="Administrator", help="Accepts the username to be used, defaults to 'Administrator'")
     parser.add_argument("-p", action="store", dest="password", default="admin", help="Accepts the password to be used, defalts to 'admin'")
     parser.add_argument("-d", action="store", dest="domain", default="WORKGROUP", help="Accepts the domain to be used, defalts to 'WORKGROUP'")
-    parser.add_argument("-t", action="store", dest="targets", default=None, help="Accepts the IP  to be used, can provide a range, single IP or CIDR")
+    parser.add_argument("-t", action="store", dest="targets", default=[], nargs="+", help="Accepts the IP  to be used, can provide a range, single IP or CIDR")
     parser.add_argument("-l", action="store", dest="targets_file", default=None, help="Accepts a file with IP addresses, ranges, and CIDR notations delinated by new lines")
     parser.add_argument("-r", action="store", dest="ports", default="135", help="Accepts the port to be used, defalts to '135'")
     parser.add_argument("-o", action="store", dest="home_dir", default="/root", help="Accepts the dir to store any results in, defaults to /root")
     parser.add_argument("-f", action="store", dest="filename", default="results", help="Accepts the filename to output relevant results")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
+    parser.add_argument("-s", action="store_true", dest="should_scan", default=False, help="Performs port scan")
+    parser.add_argument("-x", action="store", dest="nmap_xml_file", default=None, help="Accepts the filename of an NMap XML file to use for host list")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
     args = parser.parse_args()
 
@@ -167,8 +170,11 @@ def main():
     targets_file = args.targets_file   # Hosts to test against loaded by a file
     home_dir = args.home_dir           # Location to store results
     filename = args.filename           # A file that will contain the final results
+    should_scan = args.should_scan     # Should perform port scan default is False
+    nmap_xml_filename = args.nmap_xml_filename
     gateways = {}
     network_ifaces={}
+    target_list = []
 
     # Configure logger
     logger = logging.getLogger()
@@ -179,8 +185,10 @@ def main():
     else:
         level = logging.DEBUG
     logger.setLevel(level)
+    stream_handler = logging.StreamHanlder()
     log_format = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s") # Log format
-    logger.setFormat(log_format)
+    stream_handler.setFormat(log_format)
+    logger.addHandler(stream_handler)
 
     # Set filename
     if not filename:
@@ -199,9 +207,23 @@ def main():
                 filename = home_dir + "\\" + filename
                 logger.info("[*] Using filename: %s") % (filename)
 
+    # Populate list of targets
+    if targets:
+        target_list += targets
+    if targets_file:
+        with open(targets_file, "r") as ifh:
+            lines = [line.rstrip() for line in ifh.readlines()]
+            target_list += lines
+
     gateways = network.get_gateways()
     network_ifaces = network.get_networks(gateways)
-    hosts_file, hostlist = target_identifier(home_dir, username, password, targets, ports, network_ifaces, targets_file)
+    if should_scan:
+        hosts_file, hostlist = target_identifier(home_dir, username, password, target_list, ports, network_ifaces, targets_file)
+    elif nmap_xml_filename:
+        hosts = nmap_parser.parse2(nmap_xml_filename)
+        hostlist = [host.hostname for host in hosts]
+    elif targets:
+        hostlist = target_list
     run_commands(hostlist, username, password, domain, ports, filename)
 
 if __name__ == '__main__':
