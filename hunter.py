@@ -34,6 +34,7 @@ try:
 except ImportError as e:
     msg = "[!] Install the msfrpc library that can be found here: https://github.com/SpiderLabs/msfrpc.git"
     if "msgpack" in e.message.lower():
+        # Library that msfrpc depends on but not installed by the msfrpc installer
         msg = "[!] Install the msgpack library: pip install msgpack-python"
     sys.exit(msg)
 try:
@@ -57,7 +58,7 @@ def target_identifier(dir, user, passwd, ips, port_num, ifaces, ipfile, logger=l
             hostlist = f.read().replace('\n',' ')
         scanner.scan(hosts=hostlist, ports=port_num)
     else:
-        logger.info("[*] Scanning for port: %s within %s") % (str(ips), str(port_num))
+        logger.info("[*] Scanning for port: %s within %s") % (str(port_num), str(ips))
         scanner.scan(hosts=ips, ports=port_num)
     open(hosts_output, 'w').close()
     hostlist=[]
