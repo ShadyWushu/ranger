@@ -187,6 +187,7 @@ def main():
     logger.setLevel(level)
     stream_handler = logging.StreamHandler()
     log_format = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s") # Log format
+    stream_handler.setFormatter(log_format)
     logger.addHandler(stream_handler)
 
     # Set filename
