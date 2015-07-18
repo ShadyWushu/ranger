@@ -147,7 +147,7 @@ def main():
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument("-s", action="store_true", dest="should_scan", default=False, help="Performs port scan")
-    parser.add_argument("-x", action="store", dest="nmap_xml_file", default=None, help="Accepts the filename of an NMap XML file to use for host list")
+    parser.add_argument("-x", action="store", dest="nmap_xml_filename", default=None, help="Accepts the filename of an NMap XML file to use for host list")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
     args = parser.parse_args()
 
@@ -185,9 +185,8 @@ def main():
     else:
         level = logging.DEBUG
     logger.setLevel(level)
-    stream_handler = logging.StreamHanlder()
+    stream_handler = logging.StreamHandler()
     log_format = logging.Formatter("%(asctime)s [%(levelname)-5.5s]  %(message)s") # Log format
-    stream_handler.setFormat(log_format)
     logger.addHandler(stream_handler)
 
     # Set filename
@@ -199,7 +198,7 @@ def main():
     else:
         if filename:
             if "\\" or "/" in filename:
-                logger.info("[*] Using filename: %s") % (filename)
+                logger.info("[*] Using filename: %s" % (filename))
         else:
             if os.name != "nt":
                 filename = home_dir + "/" + filename
