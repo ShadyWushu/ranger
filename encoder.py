@@ -44,7 +44,7 @@ class Obfiscator:
     def __init__(self, src_ip, src_port, dst_ip, dst_port, payload, function, argument, execution):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
-		self.dst_port = dst_port
+        self.dst_port = dst_port
         self.src_port = src_port
         self.payload = payload
         self.function = function
