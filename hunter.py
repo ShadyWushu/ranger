@@ -147,7 +147,7 @@ def main():
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument("-s", action="store_true", dest="should_scan", default=False, help="Performs port scan")
-    parser.add_argument("-x", action="store", dest="nmap_xml_filename", default=None, help="Accepts the filename of an NMap XML file to use for host list")
+    parser.add_argument("-x", action="store", dest="nmap_xml_filenames", default=[], nargs="+", help="Accepts the comma separated filenames of NMap XML files to use for host list")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
     args = parser.parse_args()
 
@@ -171,7 +171,7 @@ def main():
     home_dir = args.home_dir           # Location to store results
     filename = args.filename           # A file that will contain the final results
     should_scan = args.should_scan     # Should perform port scan default is False
-    nmap_xml_filename = args.nmap_xml_filename
+    nmap_xml_filenames = args.nmap_xml_filenames
     gateways = {}
     network_ifaces={}
     target_list = []
@@ -219,8 +219,9 @@ def main():
     network_ifaces = network.get_networks(gateways)
     if should_scan:
         hosts_file, hostlist = target_identifier(home_dir, username, password, target_list, ports, network_ifaces, targets_file)
-    elif nmap_xml_filename:
-        hosts = nmap_parser.parse2(nmap_xml_filename)
+    elif nmap_xml_filenames:
+        hosts = map(nmap_parser.parse2, nmap_xml_filenames)
+        hosts = sum(hosts, [])  # flatten
         hostlist = [host.hostname for host in hosts]
     elif targets:
         hostlist = target_list
