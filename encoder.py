@@ -182,9 +182,9 @@ def main():
     network_ifaces = get_networks(gateways)
     if src_ip == None:
         try:
-           src_ip = network_ifaces[iface]
+           src_ip = network_ifaces[interface]
         except Exception as e:
-            print("[!] No IP address found on interface eth0")
+            print("[!] No IP address found on interface %s") % (interface)
 
     if "invoker" in execution:
         supplement = '''    [*] Place the PowerShell script ''' + payload + ''' in an empty directory.
