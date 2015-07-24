@@ -55,3 +55,4 @@ python ./setup.py install
 wget https://pypi.python.org/packages/source/i/impacket/impacket-0.9.13.tar.gz
 tar -xzvf impacket-0.9.13.tar.gz && mv impacket-0.9.13 impacket
 cd impacket && python setup.py install
+cd examples wget https://raw.githubusercontent.com/funkandwagnalls/ranger/testing/encoder.py
