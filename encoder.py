@@ -159,7 +159,7 @@ def main():
     usage = '''usage: %(prog)s [-s IP] [-r port] [-x payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
     parser = argparse.ArgumentParser(usage=usage)
     parser.add_argument("-s", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
-    parser.add_argument("-a", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
+    parser.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     parser.add_argument("-r", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
     parser.add_argument("-x", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
     parser.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
