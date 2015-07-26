@@ -209,7 +209,7 @@ def main():
     dom = args.dom
     target = args.target
     command = args.command
-	supplement = ""
+    supplement = ""
 
     if smbexec_cmd or wmiexec_cmd or atexec_cmd:
         invoker = True
