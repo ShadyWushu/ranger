@@ -36,7 +36,7 @@ except:
     sys.exit("[!] Install the netifaces library: pip install netifaces")
 try:
     import psexec, smbexec, atexec
-    import wmiexec2 as wmiexec
+    import wmiexec as wmiexec
 except Exception as e:
     print("[!] The following error occured %s") % (e)
     sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
