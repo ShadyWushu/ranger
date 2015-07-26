@@ -57,4 +57,4 @@ wget https://pypi.python.org/packages/source/i/impacket/impacket-0.9.13.tar.gz
 tar -xzvf impacket-0.9.13.tar.gz && mv impacket-0.9.13 impacket
 cd impacket && python setup.py install
 rm ~/impacket-0.9.13.tar.gz
-cd examples && wget https://raw.githubusercontent.com/funkandwagnalls/ranger/testing/encoder.py && chmod a+x encoder.py
+cd examples && wget https://raw.githubusercontent.com/funkandwagnalls/ranger/testing/ranger.py && chmod a+x ranger.py
