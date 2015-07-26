@@ -185,7 +185,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if args.downloader or args.invoker and args.payload == None:
+    if args.invoker and args.payload == None:
         print("[!] This script requires either a command, an invoker attack, or a downloader attack")
         parser.print_help()
         sys.exit(1)
