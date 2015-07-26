@@ -275,4 +275,4 @@ def main():
         print(x.return_command())
 
 if __name__ == '__main__':
-    main():
+    main()
