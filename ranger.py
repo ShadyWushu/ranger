@@ -4,18 +4,9 @@
 Author: Christopher Duffy
 Date: July 2015
 Name: encoder.py
-Purpose: To encode commands that execute PowerShell scripts, this library
-has the necessary skeleton to have capabilities added as needed
-Inputs:
-src_ip - The IP of the host executing the attack
-src_port - The port the host his hosting either the downloadable script or service
-dst_ip - Target to hit (not needed at this time)
-dst_port - Target port to hit (not needed at this time)
-payload - The randomized payload name that needs to be passed to generate a correct command
-function - The capabilty you are trying to us (e.g. Invoke-Mimikatz), included for randomization
-argument - The action to execute (e.g. DumpCreds), included for randomization
-execution - The pregenerated command you want to execute
-Output: The encoded command that can be passed by PSEXEC, WMI, SMB or copy and paste
+Purpose: To encode commands that execute PowerShell scripts, also provides a wrapper for 
+some of the impacket examples and fixes relevant functionality
+
 Copyright (c) 2015, Christopher Duffy & William Butler All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
