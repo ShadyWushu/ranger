@@ -28,7 +28,6 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
-
 import base64, sys, argparse, re
 
 try:
@@ -289,7 +288,9 @@ def main():
             attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom, hashes = hash)
             attack.run(target)
         elif atexec_cmd:
-            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command, hashes = hash)
+            if command == "cmd.exe":
+                sys.exit("[!] Please provide a viable command for execution")
+            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
             attack.play(target)
         else:
             print(instructions)
@@ -306,7 +307,7 @@ def main():
             attack.run(target)
         elif atexec_cmd:
             if command == "cmd.exe":
-            sys.exit("[!] Please provide a viable command for execution")
+                sys.exit("[!] Please provide a viable command for execution")
             attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
             attack.play(target)
         else:
