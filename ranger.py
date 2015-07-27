@@ -203,7 +203,7 @@ def main():
     if smbexec_cmd or wmiexec_cmd or psexec_cmd or atexec_cmd:
         methods = True
 
-    if invoker and payload == None or methods == False:
+    if invoker and payload == None and methods == False:
         print("[!] This script requires either a command, an invoker attack, or a downloader attack")
         parser.print_help()
         sys.exit(1)
