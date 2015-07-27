@@ -208,7 +208,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    if pwd not None and ":" in pwd and pwd.count(':') == 1:
+    if pwd and ":" in pwd and pwd.count(':') == 1:
         if pwd.startswith(':'):
             LM, NTLM = pwd.split(':')
             if LM == "":
