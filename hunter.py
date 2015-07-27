@@ -30,6 +30,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os, argparse, sys, time, logging
 import utilities.network as network
 import utilities.nmap as nmap_parser
+import utilities.uniq as uniq
 try:
     import msfrpc
 except ImportError as e:
@@ -225,6 +226,7 @@ def main():
         hostlist = [host.hostname for host in hosts]
     elif targets:
         hostlist = target_list
+    hostlist = uniq.uniq(hostlist.get_hosts())
     run_commands(hostlist, username, password, domain, ports, filename)
 
 if __name__ == '__main__':
