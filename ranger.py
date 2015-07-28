@@ -3,7 +3,7 @@
 '''
 Author: Christopher Duffy
 Date: July 2015
-Name: encoder.py
+Name: ranger.py
 Purpose: To encode commands that execute PowerShell scripts, also provides a wrapper for
 some of the impacket examples and fixes relevant functionality
 
