@@ -1,3 +1,4 @@
+'''
 usage:
 Command Shell:
     ranger.py [-i IP] [--user Administrator] [--pwd Password1] [-t target] --smbexec -q -v -vv -vvv
@@ -77,3 +78,4 @@ Filename for randimization of script:
 
 This script oombines specific attacks with dynmaic methods, which allow you to
 bypass many protective measures.
+'''
