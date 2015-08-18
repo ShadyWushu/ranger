@@ -364,7 +364,7 @@ Create Pasteable Double Encoded Script:
             print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         if command == "cmd.exe":
             sys.exit("[!] You must provide a command or method of exploitation if you are using wmiexec")
-        if attacks = True:
+        if attacks:
             attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
             attack.run(target)
         else:
