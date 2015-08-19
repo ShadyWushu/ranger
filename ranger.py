@@ -383,7 +383,7 @@ Create Pasteable Double Encoded Script:
     print(unprotected_command, usr, pwd, dom, hash, aes, share, no_output, kerberos)#DEBUG
     print(command, usr, pwd, dom, hash, aes, share, no_output, kerberos)#DEBUG
 
-    if method and sam_dump:
+    if methods and sam_dump:
         sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
     if psexec_cmd:
         if pwd != "":
