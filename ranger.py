@@ -211,8 +211,8 @@ Create Pasteable Double Encoded Script:
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     attack.add_argument("--group-members", action="store", dest="group", help="Identifies members of Domain Groups through PowerShell")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
-    remote_attack.add_argument("--domain", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
-    remote_attack.add_argument("--user", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
+    remote_attack.add_argument("--dom", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
+    remote_attack.add_argument("--usr", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
     remote_attack.add_argument("--pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
     method.add_argument("--psexec", action="store_true", dest="psexec_cmd", help="Inject the invoker process into the system memory with psexec")
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
@@ -367,6 +367,9 @@ Create Pasteable Double Encoded Script:
 [*] Then copy and paste the following command into the target boxes command shell.
 [*] This execution script is double encoded.
 '''
+    
+    print(unprotected_command, usr, pwd, dom, hash, aes, share, no_output, kerberos)
+
     if method and sam_dump:
         sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
     if psexec_cmd:
