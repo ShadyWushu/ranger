@@ -86,7 +86,7 @@ class Obfiscator:
         return(command)
     
     def clearer(self, cleartext):
-        command = 'powershell.exe -nop -w hidden -exec bypass"' + cleartext + '"'
+        command = 'powershell.exe -nop -w hidden -exec bypass "' + cleartext + '"'
         return(command)
 
     def return_command(self):
