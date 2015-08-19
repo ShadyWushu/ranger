@@ -448,6 +448,11 @@ Create Pasteable Double Encoded Script:
 		except Exception, as e:
 		    print("[!] The following error occurred %s") % (e)
 			sys.exit(1)
+    exc_list.append(src_ip)
+    tgt_list = list(set(tgt_list)).sorted
+    exc_list = list(set(exc_list)).sorted
+    final_targets = [ip for ip in tgt_list if ip not in exc_list]
+    print(final_targets) #DEBUG
 
     if invoker:
         execution = "invoker"
