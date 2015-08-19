@@ -35,6 +35,10 @@ try:
 except:
     sys.exit("[!] Install the netifaces library: pip install netifaces")
 try:
+    import netaddr
+except:
+    sys.exit("[!] Install the netifaces library: pip install netaddr")
+try:
     import psexec, smbexec, atexec
     import wmiexec as wmiexec
     import secretsdump
@@ -42,6 +46,62 @@ except Exception as e:
     print("[!] The following error occured %s") % (e)
     sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
 
+class TargetConverter:
+    def __init__(self, targets):
+        self.targets
+		self.cidr_noted = ""
+		self.range_value1 = ""
+		self.range_value2 = ""
+		self.ip_list = []
+		self.target_list = []
+        try:
+            self.run()
+        except Exception, e:
+            print("[!] There was an error %s") % (str(e))
+            sys.exit(1)
+	
+    def run(self):
+	    for target in self.targets:
+		    if "-" in target:
+		        range_value1, range_value2 = targets.split('-')
+     		    if len(range_value2) <= 3:
+				    self.range_value1 = range_value1
+					self.range_value2 = range_value2
+			    else:
+				    self.range_value1 = range_value1
+					octet1, octet2, octet3, octet4 = range_value1.split('.')
+					self.range_value2 = octet1 + "." + octet2 + "." + octet3 + "." + range_value2
+				print(self.range_value1) #DEBUG
+				print(self.range_value2) #DEBUG
+			    self.ip_list.extend(self.range_to_list())
+			if "/" in target:
+			    self.cidr_noted = target
+				print(self.cidr_noted) #DEBUG
+			    self.ip_list.extend(self.cidr_to_list())
+			else:
+			    self.ip_list.append(target)
+    
+    def cidr_to_list(self):
+        ip_list = []
+        for ip in IPNetwork(self.cidr_noted).iter_hosts():
+            ip_list.append(ip)
+	    return ip_list
+
+    def range_to_list(self):
+        ip_list = []
+        ip_list = list(iter_iprange(range_value1, range_value2)
+	    return ip_list
+	
+	def return_targets(self):
+        try:
+		    for ip in self.ip_list:
+			    print(str(ip)) #DEBUG
+				self.target_list.append(str(ip))
+            return(self.target_list)
+        except Exception, e:
+            print("[!] There was an error %s") % (str(e))
+            sys.exit(1)
+			
 class Obfiscator:
     def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, group, dst_ip="", dst_port=""):
         self.src_ip = src_ip
@@ -215,7 +275,10 @@ Create Pasteable Double Encoded Script:
     attack.add_argument("--executor", action="store_true", dest="executor", help="Execute a PowerShell Script")
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     attack.add_argument("--group-members", action="store", dest="group", help="Identifies members of Domain Groups through PowerShell")
-    remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The system you are attempting to exploit")
+    remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The targets you are attempting to exploit")
+    remote_attack.add_argument("-e", action="store", dest="execption", default=None, help="The exceptions to the targets you do not want to exploit, yours is inlcuded by default")
+    remote_attack.add_argument("-tl", action="store", dest="target_file", default=None, help="The targets file with systems you want to exploit, delinated by new lines")
+    remote_attack.add_argument("-el", action="store", dest="exception_file", default=None, help="The exceptions file with systems you do not want to exploit, delinated by new lines")
     remote_attack.add_argument("--dom", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
     remote_attack.add_argument("--usr", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
     remote_attack.add_argument("--pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
@@ -269,6 +332,9 @@ Create Pasteable Double Encoded Script:
     pwd = args.pwd
     dom = args.dom
     target = args.target
+    target_file = args.target_file
+    exception = args.exception
+    exception_file = args.exeception_file
     command = args.command
     filename = args.filename
     sam_dump = args.sam_dump
@@ -279,6 +345,10 @@ Create Pasteable Double Encoded Script:
     ntds = args.ntds
     group = args.group
     encoder = args.encoder
+    targets_list = []
+    exceptions_list = []
+    tgt_list = []
+    exc_list = []
     LM = ""
     NTLM = ""
     no_output = False
@@ -338,6 +408,46 @@ Create Pasteable Double Encoded Script:
            src_ip = network_ifaces[interface]['addr']
         except Exception as e:
             print("[!] No IP address found on interface %s") % (interface)
+
+	with open(target_filename) as f:
+        targets_list = f.read().splitlines()
+        
+    if "," in target:
+        targets_list.extend(targets.split(','))
+    else:
+        targets_list.append(targets)
+	for item in targets_list:
+	    try:
+		    tgt = TargetConverter(item)
+		except Exception, as e:
+		    print("[!] The following error occurred %s") % (e)
+			sys.exit(1)
+		try:
+		    tgt_list.extend(tgt.return_targets())
+			print(tgt_list) #DEBUG
+		except Exception, as e:
+		    print("[!] The following error occurred %s") % (e)
+			sys.exit(1)
+
+	with open(exceptiont_filename) as f:
+        exceptions_list = f.read().splitlines()
+        
+    if "," in exception:
+        exceptions_list.extend(targets.split(','))
+    else:
+        exceptions_list.append(exception)
+	for item in exceptions_list:
+	    try:
+		    exc = TargetConverter(item)
+		except Exception, as e:
+		    print("[!] The following error occurred %s") % (e)
+			sys.exit(1)
+		try:
+		    exc_list.extend(exc.return_targets())
+			print(exc_list) #DEBUG
+		except Exception, as e:
+		    print("[!] The following error occurred %s") % (e)
+			sys.exit(1)
 
     if invoker:
         execution = "invoker"
