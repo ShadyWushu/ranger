@@ -202,6 +202,7 @@ Create Pasteable Double Encoded Script:
     iex_options = parser.add_argument_group('PowerShell IEX Options')
     remote_attack = parser.add_argument_group('Remote Target Options')
     generator = parser.add_argument_group('Filename for randimization of script')
+    obfiscation = parser.add_argument_group('Tools to obfiscate the execution of scripts')
     method = group1.add_mutually_exclusive_group()
     attack = group2.add_mutually_exclusive_group()
     sam_dump_options = group3.add_mutually_exclusive_group()
@@ -236,6 +237,7 @@ Create Pasteable Double Encoded Script:
     sam_dump_options.add_argument("--security", action="store", help="The SECURITY hive to parse")
     sam_dump_options.add_argument("--sam", action="store", help="The SAM hive to parse")
     sam_dump_options.add_argument("--ntds", action="store", help="The NTDS.DIT file to parse")
+    obfiscation.add_argument("--encoder", action="store_true", help="Set to encode the commands that are being executed")
     parser.add_argument("-v", action="count", dest="verbose", default=1, help="Verbosity level, defaults to one, this outputs each command and result")
     parser.add_argument("-q", action="store_const", dest="verbose", const=0, help="Sets the results to be quiet")
     parser.add_argument('--version', action='version', version='%(prog)s 0.42b')
@@ -279,6 +281,7 @@ Create Pasteable Double Encoded Script:
     sam = args.sam
     ntds = args.ntds
     group = args.group
+    encoder = args.encoder
     LM = ""
     NTLM = ""
     no_output = False
