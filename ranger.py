@@ -39,7 +39,7 @@ try:
 except:
     sys.exit("[!] Install the netaddr library: pip install netaddr")
 try:
-    import psexec, smbexec, atexec
+    import psexec, smbexec, atexec, netview
     import wmiexec as wmiexec
     import secretsdump
 except Exception as e:
@@ -98,6 +98,46 @@ class TargetConverter:
         except Exception, e:
             print("[!] There was an error %s") % (str(e))
             sys.exit(1)
+
+class NetviewDetails:
+    def __init__(self, user = None, users = None, target = None, targets = None, noloop = True, delay = '10', max_connections = '1000', domainController = None, debug = False):
+        self.user = user
+        self.users = users
+        self.target = target
+        self.targets = targets
+        self.noloop = noloop
+        self.delay = delay
+        self.max_connections = max_connections
+        self.domainController = domainController
+        self.debug = debug
+
+    def user(self):
+        return(self.user)
+
+    def users(self):
+        return(self.users)
+
+    def target(self):
+        return(self.target)
+
+    def targets(self):
+        return(self.targets)
+
+    def noloop(self):
+        return(self.noloop)
+
+    def delay(self):
+        return(self.delay)
+
+    def max_connections(self):
+        return(self.max_connections)
+
+    def domainController(self):
+        return(self.domainController)
+
+    def debug(self):
+        return(self.debug)
+
 
 class Obfiscator:
     def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, group, dst_ip="", dst_port=""):
@@ -288,6 +328,7 @@ Create Pasteable Double Encoded Script:
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
     method.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
     method.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the command task into the system memory with at on systems older than Vista")
+    method.add_argument("--scout", action="store_true", dest="netview_cmd", help="Identify logged in users on a target machine")
     generator.add_argument("--filename", action="store", dest="filename", default=None, help="The file that the attack script will be dumped to")
     remote_attack.add_argument("--aes", action="store", dest="aes_key", default=None, help="The AES Key Option")
     remote_attack.add_argument("--kerberos", action="store", dest="kerberos", default=False, help="The Kerberos option")
@@ -325,6 +366,7 @@ Create Pasteable Double Encoded Script:
     wmiexec_cmd = args.wmiexec_cmd     # Holds the results for the wmiexec execution
     psexec_cmd = args.psexec_cmd       # Holds the results for the psexec execution
     atexec_cmd = args.atexec_cmd
+    netview_cmd = args.netview_cmd
     aes = args.aes_key
     kerberos = args.kerberos
     share = args.share
@@ -544,6 +586,17 @@ Create Pasteable Double Encoded Script:
             if attacks:
                 srv.terminate()
                 print("[*] Shutting down the catapult web server")
+    elif netview_cmd:
+        for dst in final_targets:
+            if attacks:
+                sys.exit("[!] The --scout option is run without attacks")
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            opted = NetviewDetails(user = None, users = None, target = dst, targets = None, noloop = True, delay = '10', max_connections = '1000', domainController = None, debug = False)
+            attack = netview.USERENUM(username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, options=opted)
+            attack.run()
     elif smbexec_cmd:
         for dst in final_targets:
             if attacks:
