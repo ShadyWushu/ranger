@@ -328,7 +328,7 @@ Create Pasteable Double Encoded Script:
     method.add_argument("--wmiexec", action="store_true", dest="wmiexec_cmd", help="Inject the invoker process into the system memory with wmiexec")
     method.add_argument("--smbexec", action="store_true", dest="smbexec_cmd", help="Inject the invoker process into the system memory with smbexec")
     method.add_argument("--atexec", action="store_true", dest="atexec_cmd", help="Inject the command task into the system memory with at on systems older than Vista")
-    method.add_argument("--scout", action="store_true", dest="netview_cmd", help="Identify logged in users on a target machine")
+    attack.add_argument("--scout", action="store_true", dest="netview_cmd", help="Identify logged in users on a target machine")
     generator.add_argument("--filename", action="store", dest="filename", default=None, help="The file that the attack script will be dumped to")
     remote_attack.add_argument("--aes", action="store", dest="aes_key", default=None, help="The AES Key Option")
     remote_attack.add_argument("--kerberos", action="store", dest="kerberos", default=False, help="The Kerberos option")
@@ -532,8 +532,13 @@ Create Pasteable Double Encoded Script:
         execution = "group"
         x = Obfiscator(src_ip, src_port, payload, mim_func, mim_arg, execution, method_dict, group)
         command, unprotected_command = x.return_command()
+    elif netview_cmd:
+        attacks = True
     else:
         attacks = False
+
+    if not attacks and not methods:
+        sys.exit("[!] You need to provide ranger with details necessary to execute relevant attacks and methods")
 
     if "invoker" in execution and not wmiexec_cmd:
         supplement = '''[*] Place the PowerShell script ''' + str(payload) + ''' in an empty directory.
@@ -588,8 +593,8 @@ Create Pasteable Double Encoded Script:
                 print("[*] Shutting down the catapult web server")
     elif netview_cmd:
         for dst in final_targets:
-            if attacks:
-                sys.exit("[!] The --scout option is run without attacks")
+            if methods:
+                sys.exit("[!] The --scout option is run without methods")
             if hash:
                 print("[*] Attempting to access the system %s with, user: %s hash: %s domain: %s ") % (dst, usr, hash, dom)
             else:
